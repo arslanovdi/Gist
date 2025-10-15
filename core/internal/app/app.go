@@ -3,54 +3,80 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
+	"github.com/arslanovdi/Gist/core/internal/tgbot"
+	"github.com/arslanovdi/Gist/core/internal/user"
+	"github.com/joho/godotenv"
 )
 
 type App struct {
-	Config *config.Config
+	Cfg *config.Config
+	Bot *tgbot.Bot
 }
 
-func New() *App {
+func New() (*App, error) {
 	log := slog.With("func", "app.New")
 
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		log.Error("failed to load config", slog.Any("error", err))
-		os.Exit(1)
+	errE := godotenv.Load(".env")
+	if errE != nil {
+		log.Error("Error loading .env file", slog.Any("error", errE)) // Это корректное поведение, т.к. в k8s этого файла может не быть, а параметры передаются через ENV. Просто логируем поведение.
 	}
+
+	cfg, errC := config.LoadConfig()
+	if errC != nil {
+		return nil, fmt.Errorf("[app.New] Error loading config: %w", errC)
+	}
+
 	log.Info("configuration loaded")
 
-	return &App{
-		Config: cfg,
+	userCommands := user.New(cfg)
+
+	bot, errB := tgbot.New(cfg, userCommands)
+	if errB != nil {
+		return nil, fmt.Errorf("[app.new] bot initialization failed: %w", errB)
 	}
+
+	return &App{
+		Cfg: cfg,
+		Bot: bot,
+	}, nil
 }
 
-// Run
-// Инициализация зависимостей, запуск бота
-func (a *App) Run(_ context.Context, cancelStart context.CancelFunc) error {
+func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 
 	log := slog.With("func", "app.Run")
 
-	// TODO Запуск всего...
+	// Канал ошибок при запуске
+	serverErr := make(chan error, 1)
+	defer close(serverErr)
 
+	// TODO Запуск всего...
+	ctx := context.WithoutCancel(context.Background())
+	a.Bot.Run(ctx, serverErr)
+
+	cancelStartTimeout() // все запустили, отменяем контекст запуска приложения
+	log.Info("Application started")
+
+	// graceful shutdown
 	stop := make(chan os.Signal, 1)
 	defer close(stop)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	cancelStart() // все запустили, отменяем контекст запуска приложения
-
 	select {
 	case <-stop:
 		log.Info("Shutting down...")
+	case err := <-serverErr:
+		log.Info("Error on Run. Shutdown...", slog.Any("error", err))
 	}
 
-	ctxShutdown, cancelShutdown := context.WithTimeout(context.Background(), a.Config.Project.ShutdownTimeout) // контекст останова приложения
-	defer cancelShutdown()
+	ctxShutdown, cancelShutdownTimeout := context.WithTimeout(context.Background(), a.Cfg.Project.ShutdownTimeout) // контекст останова приложения
+	defer cancelShutdownTimeout()
 	go func() {
 		<-ctxShutdown.Done()
 		if errors.Is(ctxShutdown.Err(), context.DeadlineExceeded) {
@@ -63,9 +89,11 @@ func (a *App) Run(_ context.Context, cancelStart context.CancelFunc) error {
 	return nil
 }
 
-func (a *App) Close(_ context.Context) {
+func (a *App) Close(ctx context.Context) {
 
 	log := slog.With("func", "app.Close")
+
+	a.Bot.Close(ctx)
 
 	log.Info("Application stopped")
 }

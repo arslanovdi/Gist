@@ -18,27 +18,32 @@ const (
 
 func main() {
 	// контекст запуска приложения
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(startupTimeout)*time.Second)
-	defer cancel()
+	ctxStart, cancelStartTimeout := context.WithTimeout(context.Background(), time.Duration(startupTimeout)*time.Second)
+	defer cancelStartTimeout()
 	go func() {
-		<-ctx.Done()
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) { // приложение зависло при запуске
-			slog.Error("Application startup time exceeded")
+		<-ctxStart.Done()
+		if errors.Is(ctxStart.Err(), context.DeadlineExceeded) { // приложение зависло при запуске
+			slog.With("func", "main").Error("Application startup time exceeded")
 			os.Exit(1)
 		}
 	}()
 
 	logger.InitializeLogger(slog.LevelDebug, serviceName)
+	log := slog.With("func", "main")
 
-	application := app.New()
+	application, errA := app.New()
+	if errA != nil {
+		log.Error("Failed to initialize application", slog.Any("error", errA))
+		os.Exit(1)
+	}
 
-	if application.Config.Project.Debug {
+	if application.Cfg.Project.Debug {
 		logger.SetLogLevel(slog.LevelDebug)
 	} else {
 		logger.SetLogLevel(slog.LevelInfo)
 	}
 
-	if err := application.Run(ctx, cancel); err != nil {
-		slog.With("function", "main").Error("failed to run application", slog.Any("error", err))
+	if err := application.Run(cancelStartTimeout); err != nil {
+		log.Error("failed to run application", slog.Any("error", err))
 	}
 }

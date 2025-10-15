@@ -1,3 +1,11 @@
 project:
   debug: true
   shutdownTimeout: 60s
+
+bot:
+  token: ""
+  app_id: 0
+  app_hash: ""
+  ngrok_auth_token: ""
+  ngrok_domain: ""
+

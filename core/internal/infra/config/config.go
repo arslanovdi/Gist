@@ -17,6 +17,14 @@ type Config struct {
 		Debug           bool          `yaml:"debug"`
 		ShutdownTimeout time.Duration `yaml:"shutdownTimeout"`
 	} `yaml:"project"`
+
+	Bot struct {
+		Token          string `yaml:"token"`                    // env BOT_TOKEN
+		AppID          int    `mapstructure:"app_id"`           // env BOT_APP_ID	// mapstructure вместо yaml, viper некорректно парсит yaml тэги со знаком "_"
+		AppHash        string `mapstructure:"app_hash"`         // env BOT_APP_HASH
+		NgrokAuthToken string `mapstructure:"ngrok_auth_token"` // env BOT_NGROK_AUTH_TOKEN
+		NgrokDomain    string `mapstructure:"ngrok_domain"`     // env BOT_NGROK_DOMAIN
+	} `yaml:"bot"`
 }
 
 func LoadConfig() (*Config, error) {
