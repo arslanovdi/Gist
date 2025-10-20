@@ -25,6 +25,11 @@ type Config struct {
 		NgrokAuthToken string `mapstructure:"ngrok_auth_token"` // env BOT_NGROK_AUTH_TOKEN
 		NgrokDomain    string `mapstructure:"ngrok_domain"`     // env BOT_NGROK_DOMAIN
 	} `yaml:"bot"`
+
+	TgClient struct {
+		SessionTTL     time.Duration `yaml:"sessionTTL"`
+		RequestTimeout time.Duration `yaml:"requestTimeout"`
+	} `yaml:"tgClient"`
 }
 
 func LoadConfig() (*Config, error) {

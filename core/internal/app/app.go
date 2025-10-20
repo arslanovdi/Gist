@@ -9,15 +9,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/core"
+	"github.com/arslanovdi/Gist/core/internal/domain/tgbot"
+	"github.com/arslanovdi/Gist/core/internal/domain/tgclient"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
-	"github.com/arslanovdi/Gist/core/internal/tgbot"
-	"github.com/arslanovdi/Gist/core/internal/user"
 	"github.com/joho/godotenv"
 )
 
 type App struct {
-	Cfg *config.Config
-	Bot *tgbot.Bot
+	Cfg            *config.Config           // Конфигурация
+	TelegramBot    *tgbot.Bot               // Телеграм бот
+	TelegramClient *tgclient.SessionManager // Телеграм клиент
+	CoreService    *core.Gist               // Слой бизнес логики
 }
 
 func New() (*App, error) {
@@ -35,16 +38,22 @@ func New() (*App, error) {
 
 	log.Info("configuration loaded")
 
-	userCommands := user.New(cfg)
+	telegramClient := tgclient.NewSessionManager(cfg)
 
-	bot, errB := tgbot.New(cfg, userCommands)
+	coreService := core.NewGist(telegramClient, cfg)
+
+	bot, errB := tgbot.New(cfg, coreService)
 	if errB != nil {
 		return nil, fmt.Errorf("[app.new] bot initialization failed: %w", errB)
 	}
 
+	coreService.SetTelegramBot(bot) // Внедрение зависимости.
+
 	return &App{
-		Cfg: cfg,
-		Bot: bot,
+		Cfg:            cfg,
+		TelegramBot:    bot,
+		TelegramClient: telegramClient,
+		CoreService:    coreService,
 	}, nil
 }
 
@@ -57,8 +66,8 @@ func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 	defer close(serverErr)
 
 	// TODO Запуск всего...
-	ctx := context.WithoutCancel(context.Background())
-	a.Bot.Run(ctx, serverErr)
+	ctx := context.WithoutCancel(context.Background()) // Нужен долгоживущий контекст (это просто явное его описание))).
+	a.TelegramBot.Run(ctx, serverErr)
 
 	cancelStartTimeout() // все запустили, отменяем контекст запуска приложения
 	log.Info("Application started")
@@ -93,7 +102,9 @@ func (a *App) Close(ctx context.Context) {
 
 	log := slog.With("func", "app.Close")
 
-	a.Bot.Close(ctx)
+	a.TelegramBot.Close(ctx)
+
+	a.TelegramClient.Close()
 
 	log.Info("Application stopped")
 }

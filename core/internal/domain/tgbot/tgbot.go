@@ -5,34 +5,41 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
 	"github.com/valyala/fasthttp"
 	"golang.ngrok.com/ngrok/v2"
 )
 
-type UserCommands interface {
-	GetAllChats() ([]string, error)
-	GetGistFromChat(chatID int) (string, error)
+type CoreService interface {
+	GetAllChats(ctx context.Context, userID int64) ([]string, error) // TODO все чаты в боте не нужны, только для теста. В релизе выводить только чаты, в которых есть непрочитанные сообщения, в порядке убывания кол-ва непрочитанных сообщений
 }
 
 type Bot struct {
-	cfg     *config.Config
-	bot     *telego.Bot
-	srv     *fasthttp.Server
-	agent   ngrok.Agent
-	tun     ngrok.EndpointListener
-	updates <-chan telego.Update
-	wg      *sync.WaitGroup
-	stop    chan struct{}
+	cfg *config.Config
 
-	commands UserCommands
+	srv   *fasthttp.Server // параметры ngrok туннеля
+	agent ngrok.Agent
+	tun   ngrok.EndpointListener
+
+	bot     *telego.Bot // параметры телеграм бота
+	bh      *th.BotHandler
+	updates <-chan telego.Update
+
+	wg *sync.WaitGroup // Контроль запущенных горутин (веб-сервер)
+
+	userStates      map[int64]model.UserState   // Состояние пользователя, пользователи удаляются после отправки данных в канал регистрации TODO добавить метрики на кол-во элементов в мапе
+	userCredentials map[int64]*model.Credential // Учетные данные, пользователи удаляются после отправки данных в канал регистрации TODO добавить метрики на кол-во элементов в мапе
+
+	coreService CoreService // Слой бизнес-логики
 }
 
-func New(cfg *config.Config, commands UserCommands) (*Bot, error) {
-	// log := slog.With("func", "bot.New")
+func New(cfg *config.Config, coreService CoreService) (*Bot, error) {
+	log := slog.With("func", "bot.New")
+	log.Info("Initializing bot")
 
 	// создаем бота
 	bot, errB := telego.NewBot(cfg.Bot.Token,
@@ -49,16 +56,19 @@ func New(cfg *config.Config, commands UserCommands) (*Bot, error) {
 	}
 
 	// Создаем сервер, для обработки запросов вебхука Telegram
-	srv := &fasthttp.Server{}
+	srv := &fasthttp.Server{
+		//	CloseOnShutdown: true,
+	}
 
 	return &Bot{
-		bot:      bot,
-		srv:      srv,
-		agent:    agent,
-		commands: commands,
-		cfg:      cfg,
-		wg:       &sync.WaitGroup{},
-		stop:     make(chan struct{}),
+		bot:             bot,
+		srv:             srv,
+		agent:           agent,
+		cfg:             cfg,
+		coreService:     coreService,
+		wg:              &sync.WaitGroup{},
+		userStates:      make(map[int64]model.UserState),
+		userCredentials: make(map[int64]*model.Credential),
 	}, nil
 }
 
@@ -101,20 +111,7 @@ func (b *Bot) Run(ctx context.Context, serverErr chan error) {
 		return
 	}
 
-	// Loop through all updates when they came
-	b.wg.Go(func() {
-		for {
-			select {
-			case update, ok := <-b.updates:
-				if !ok {
-					return
-				}
-				messageProcessing(update)
-			case <-b.stop: // Так как закрытие канала update происходит через метод b.bot.Close, а его можно вызывать только через 10 минут после запуска. Реализован альтернативный способ закрытия канала через сигнал.
-				return
-			}
-		}
-	})
+	b.RegisterHandlers(ctx, serverErr) // Регистрируем все обработчики
 
 	log.Info("bot started")
 }
@@ -123,9 +120,14 @@ func (b *Bot) Close(ctx context.Context) {
 	log := slog.With("func", "bot.Close")
 	log.Info("Stopping...")
 
-	errT := b.tun.CloseWithContext(ctx)
-	if errT != nil {
-		log.Error("Error shutting down tunnel", slog.Any("error", errT))
+	errD := b.bot.DeleteWebhook(ctx, &telego.DeleteWebhookParams{}) // TODO удалять вебхук в принципе необязательно? Если не удалить longPolling работать не будет.
+	if errD != nil {
+		log.Error("Delete webhook error", slog.Any("error", errD))
+	}
+
+	errH := b.bh.Stop()
+	if errH != nil {
+		log.Error("Error stopping handling of updates", slog.Any("error", errH))
 	}
 
 	errS := b.srv.ShutdownWithContext(ctx)
@@ -133,22 +135,9 @@ func (b *Bot) Close(ctx context.Context) {
 		log.Error("Error shutting down server", slog.Any("error", errS))
 	}
 
-	errD := b.bot.DeleteWebhook(ctx, &telego.DeleteWebhookParams{}) // TODO удалять вебхук в принципе необязательно. Если не удалить longPolling работать не будет.
-	if errD != nil {
-		log.Error("Delete webhook error", slog.Any("error", errD))
-	}
-
-	// Очищаем очередь обновлений
-	fmt.Println("len", len(b.updates))
-loop:
-	for len(b.updates) > 0 {
-		select {
-		case <-ctx.Done():
-			break loop
-		case <-time.After(time.Microsecond * 100):
-			fmt.Println("tik")
-			// Continue
-		}
+	errT := b.tun.CloseWithContext(ctx)
+	if errT != nil {
+		log.Error("Error shutting down tunnel", slog.Any("error", errT))
 	}
 
 	// TODO Метод Close нельзя вызывать раньше чем через 10 минут после запуска.! Подумать для чего он вообще вызывается.
@@ -157,12 +146,6 @@ loop:
 		log.Error("Error shutting down bot", slog.Any("error", errB))
 	}*/
 
-	close(b.stop) // Отправляем сигнал на завершение обработки updates.
-
 	b.wg.Wait()
 	log.Info("Bot Stopped")
-}
-
-func messageProcessing(update telego.Update) {
-	fmt.Printf("Update: %+v\n", update)
 }

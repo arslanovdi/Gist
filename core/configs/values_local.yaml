@@ -9,3 +9,6 @@ bot:
   ngrok_auth_token: ""
   ngrok_domain: ""
 
+tgClient:
+  sessionTTL: 30m
+  requestTimeout: 5m
