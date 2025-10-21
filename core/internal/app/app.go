@@ -17,10 +17,10 @@ import (
 )
 
 type App struct {
-	Cfg            *config.Config           // Конфигурация
-	TelegramBot    *tgbot.Bot               // Телеграм бот
-	TelegramClient *tgclient.SessionManager // Телеграм клиент
-	CoreService    *core.Gist               // Слой бизнес логики
+	Cfg            *config.Config    // Конфигурация
+	TelegramBot    *tgbot.Bot        // Телеграм бот
+	TelegramClient *tgclient.Session // Телеграм клиент
+	CoreService    *core.Gist        // Слой бизнес логики
 }
 
 func New() (*App, error) {
@@ -38,7 +38,7 @@ func New() (*App, error) {
 
 	log.Info("configuration loaded")
 
-	telegramClient := tgclient.NewSessionManager(cfg)
+	telegramClient := tgclient.NewSession(cfg)
 
 	coreService := core.NewGist(telegramClient, cfg)
 
@@ -47,7 +47,7 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("[app.new] bot initialization failed: %w", errB)
 	}
 
-	coreService.SetTelegramBot(bot) // Внедрение зависимости.
+	// coreService.SetTelegramBot(bot) // Внедрение зависимости.
 
 	return &App{
 		Cfg:            cfg,
@@ -103,8 +103,6 @@ func (a *App) Close(ctx context.Context) {
 	log := slog.With("func", "app.Close")
 
 	a.TelegramBot.Close(ctx)
-
-	a.TelegramClient.Close()
 
 	log.Info("Application stopped")
 }

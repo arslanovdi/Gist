@@ -20,16 +20,18 @@ type Config struct {
 
 	Bot struct {
 		Token          string `yaml:"token"`                    // env BOT_TOKEN
-		AppID          int    `mapstructure:"app_id"`           // env BOT_APP_ID	// mapstructure вместо yaml, viper некорректно парсит yaml тэги со знаком "_"
-		AppHash        string `mapstructure:"app_hash"`         // env BOT_APP_HASH
 		NgrokAuthToken string `mapstructure:"ngrok_auth_token"` // env BOT_NGROK_AUTH_TOKEN
 		NgrokDomain    string `mapstructure:"ngrok_domain"`     // env BOT_NGROK_DOMAIN
 	} `yaml:"bot"`
 
-	TgClient struct {
+	Client struct {
+		AppID          int           `mapstructure:"app_id"`   // env CLIENT_APP_ID	// mapstructure вместо yaml, viper некорректно парсит yaml тэги со знаком "_"
+		AppHash        string        `mapstructure:"app_hash"` // env CLIENT_APP_HASH
+		UserID         int64         `mapstructure:"user_id"`  // env CLIENT_USER_ID
+		Phone          string        `yaml:"phone"`            // env CLIENT_PHONE
 		SessionTTL     time.Duration `yaml:"sessionTTL"`
 		RequestTimeout time.Duration `yaml:"requestTimeout"`
-	} `yaml:"tgClient"`
+	} `yaml:"client"`
 }
 
 func LoadConfig() (*Config, error) {

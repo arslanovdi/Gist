@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
@@ -15,11 +14,12 @@ import (
 )
 
 type CoreService interface {
-	GetAllChats(ctx context.Context, userID int64) ([]string, error) // TODO все чаты в боте не нужны, только для теста. В релизе выводить только чаты, в которых есть непрочитанные сообщения, в порядке убывания кол-ва непрочитанных сообщений
+	GetAllChats(ctx context.Context) ([]string, error) // TODO все чаты в боте не нужны, только для теста. В релизе выводить только чаты, в которых есть непрочитанные сообщения, в порядке убывания кол-ва непрочитанных сообщений
 }
 
 type Bot struct {
-	cfg *config.Config
+	cfg           *config.Config
+	allowedUserID int64
 
 	srv   *fasthttp.Server // параметры ngrok туннеля
 	agent ngrok.Agent
@@ -30,9 +30,6 @@ type Bot struct {
 	updates <-chan telego.Update
 
 	wg *sync.WaitGroup // Контроль запущенных горутин (веб-сервер)
-
-	userStates      map[int64]model.UserState   // Состояние пользователя, пользователи удаляются после отправки данных в канал регистрации TODO добавить метрики на кол-во элементов в мапе
-	userCredentials map[int64]*model.Credential // Учетные данные, пользователи удаляются после отправки данных в канал регистрации TODO добавить метрики на кол-во элементов в мапе
 
 	coreService CoreService // Слой бизнес-логики
 }
@@ -61,14 +58,13 @@ func New(cfg *config.Config, coreService CoreService) (*Bot, error) {
 	}
 
 	return &Bot{
-		bot:             bot,
-		srv:             srv,
-		agent:           agent,
-		cfg:             cfg,
-		coreService:     coreService,
-		wg:              &sync.WaitGroup{},
-		userStates:      make(map[int64]model.UserState),
-		userCredentials: make(map[int64]*model.Credential),
+		bot:           bot,
+		srv:           srv,
+		agent:         agent,
+		cfg:           cfg,
+		coreService:   coreService,
+		wg:            &sync.WaitGroup{},
+		allowedUserID: cfg.Client.UserID,
 	}, nil
 }
 

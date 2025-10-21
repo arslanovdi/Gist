@@ -4,11 +4,13 @@ project:
 
 bot:
   token: ""
-  app_id: 0
-  app_hash: ""
   ngrok_auth_token: ""
   ngrok_domain: ""
 
-tgClient:
+client:
+  app_id: 0
+  app_hash: ""
+  user_id: 0
+  phone: ""
   sessionTTL: 30m
   requestTimeout: 5m
