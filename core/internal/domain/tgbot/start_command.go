@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -16,26 +17,23 @@ func (b *Bot) StartCommand(ctx *th.Context, update telego.Update) error {
 	log := slog.With("func", "tgbot.StartCommand")
 	log.Debug("/start command")
 
-	chats, errG := b.coreService.GetAllChats(ctx)
+	chats, errG := b.coreService.GetChatsWithUnreadMessages(ctx) // Получаем список чатов с непрочитанными сообщениями
 	if errG != nil {
-		return errG
+		return fmt.Errorf("internal server error: %w", errG)
 	}
 
-	fmt.Println(chats)
-
-	err := b.sendChatsList(ctx, update, chats)
+	err := b.sendChatsList(ctx, update, chats) // Выводим результат в чат с пользователем.
 	if err != nil {
-		log.Error("Failed to send chat list")
+		log.Error("Failed to send chat list", slog.Any("error", err))
+		return fmt.Errorf("failed to send chat list: %w", err)
 	}
 
-	_, errS := b.bot.SendMessage(ctx, tu.Messagef(
-		tu.ID(update.Message.Chat.ID),
-		"Hello %s!", update.Message.From.FirstName,
-	))
-	return errS
+	log.Debug("/start command finished")
+
+	return nil
 }
 
-func (b *Bot) sendChatsList(ctx context.Context, update telego.Update, chats []string) error {
+func (b *Bot) sendChatsList(ctx context.Context, update telego.Update, chats []model.Chat) error {
 	const maxLen = 4096
 	var message strings.Builder
 
@@ -52,7 +50,7 @@ func (b *Bot) sendChatsList(ctx context.Context, update telego.Update, chats []s
 	}
 
 	for _, chat := range chats {
-		line := chat + "\n" // добавляем перенос
+		line := fmt.Sprintf("%s %d\n", chat.Title, chat.UnreadCount)
 		if message.Len()+len(line) > maxLen {
 			if err := sendChunk(); err != nil {
 				return err

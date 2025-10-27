@@ -10,6 +10,7 @@ import (
 func (b *Bot) authorizedOnlyMiddleware() th.Handler {
 	return func(ctx *th.Context, update telego.Update) (err error) {
 		var from telego.User
+		log := slog.With("func", "tgbot.authorizedOnlyMiddleware")
 
 		// Определяем отправителя из возможных источников
 		switch {
@@ -26,7 +27,7 @@ func (b *Bot) authorizedOnlyMiddleware() th.Handler {
 
 		// Если пользователь не определен или ID не совпадает - игнорируем запрос
 		if from.ID != b.allowedUserID {
-			slog.Debug("Unauthorized access attempt", slog.Int64("user_id", from.ID))
+			log.Debug("Unauthorized access attempt", slog.Int64("user_id", from.ID))
 			return nil
 		}
 

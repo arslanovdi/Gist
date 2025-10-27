@@ -14,3 +14,6 @@ client:
   phone: ""
   sessionTTL: 30m
   requestTimeout: 5m
+
+settings:
+  chat_unread_threshold: 100

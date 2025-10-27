@@ -5,10 +5,8 @@ type Credential struct {
 	Code  string
 }
 
-type UserState string
-
-const (
-	AuthGetPhone = UserState("аутентификация, ввод номера телефона")
-	AuthGetCode  = UserState("аутентификация, ввод кода подтверждения")
-	AuthDone     = UserState("аутентификация, данные получены")
-)
+type Chat struct {
+	Title       string // From Chats.Title
+	ID          int64  // From Chats.ID
+	UnreadCount int    // From Dialogs.UnreadCount
+}

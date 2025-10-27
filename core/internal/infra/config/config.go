@@ -32,6 +32,10 @@ type Config struct {
 		SessionTTL     time.Duration `yaml:"sessionTTL"`
 		RequestTimeout time.Duration `yaml:"requestTimeout"`
 	} `yaml:"client"`
+
+	Settings struct {
+		ChatUnreadThreshold int `mapstructure:"chat_unread_threshold"`
+	} `yaml:"settings"`
 }
 
 func LoadConfig() (*Config, error) {

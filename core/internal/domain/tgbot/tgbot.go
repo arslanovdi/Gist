@@ -2,26 +2,30 @@ package tgbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
-	"github.com/valyala/fasthttp"
 	"golang.ngrok.com/ngrok/v2"
 )
 
 type CoreService interface {
-	GetAllChats(ctx context.Context) ([]string, error) // TODO все чаты в боте не нужны, только для теста. В релизе выводить только чаты, в которых есть непрочитанные сообщения, в порядке убывания кол-ва непрочитанных сообщений
+	GetAllChats(ctx context.Context) ([]model.Chat, error)
+	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error)
 }
 
 type Bot struct {
 	cfg           *config.Config
 	allowedUserID int64
 
-	srv   *fasthttp.Server // параметры ngrok туннеля
+	// параметры ngrok туннеля
+	srv   *http.Server
 	agent ngrok.Agent
 	tun   ngrok.EndpointListener
 
@@ -53,9 +57,8 @@ func New(cfg *config.Config, coreService CoreService) (*Bot, error) {
 	}
 
 	// Создаем сервер, для обработки запросов вебхука Telegram
-	srv := &fasthttp.Server{
-		//	CloseOnShutdown: true,
-	}
+
+	srv := &http.Server{}
 
 	return &Bot{
 		bot:           bot,
@@ -72,6 +75,11 @@ func New(cfg *config.Config, coreService CoreService) (*Bot, error) {
 func (b *Bot) Run(ctx context.Context, serverErr chan error) {
 	log := slog.With("func", "bot.Run")
 
+	if serverErr == nil {
+		log.Error("error channel is nil")
+		return
+	}
+
 	// создаем туннель
 	var errT error
 
@@ -83,19 +91,21 @@ func (b *Bot) Run(ctx context.Context, serverErr chan error) {
 	}
 
 	// Start server for receiving requests from the Telegram using the Ngrok tunnel
-	// TODO Запускаем fasthttp сервер на ngrok-туннеле
+	// TODO Запускаем http сервер на ngrok-туннеле
 	b.wg.Go(func() {
 		errS := b.srv.Serve(b.tun)
-		if errS != nil { // TODO будет ли выводится ошибка при корректной остановке сервера, может переделать на net/http, там можно обработать корректное завершение.
-			serverErr <- fmt.Errorf("[bot.Run] bot webhook serve failed: %w", errS)
+		if errS != nil {
+			if !errors.Is(errS, http.ErrServerClosed) {
+				serverErr <- fmt.Errorf("[bot.Run] bot webhook serve failed: %w", errS)
+			}
 		}
 	})
 
 	// Регистрируем вебхук, получаем канал обновлений, используя Ngrok
 	var errB error
 	b.updates, errB = b.bot.UpdatesViaWebhook(ctx,
-		// Use FastHTTP webhook server
-		telego.WebhookFastHTTP(b.srv, "/bot", b.bot.SecretToken()),
+		// Use net/http webhook server
+		telego.WebhookHTTPServer(b.srv, "/bot", b.bot.SecretToken()),
 		// Calls SetWebhook before starting webhook and provide dynamic Ngrok tunnel URL
 		telego.WithWebhookSet(ctx, &telego.SetWebhookParams{
 			URL:         b.tun.URL().String() + "/bot",
@@ -126,7 +136,7 @@ func (b *Bot) Close(ctx context.Context) {
 		log.Error("Error stopping handling of updates", slog.Any("error", errH))
 	}
 
-	errS := b.srv.ShutdownWithContext(ctx)
+	errS := b.srv.Shutdown(ctx)
 	if errS != nil {
 		log.Error("Error shutting down server", slog.Any("error", errS))
 	}

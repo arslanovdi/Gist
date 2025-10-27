@@ -67,6 +67,7 @@ func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 
 	// TODO Запуск всего...
 	ctx := context.WithoutCancel(context.Background()) // Нужен долгоживущий контекст (это просто явное его описание))).
+	a.TelegramClient.Run(ctx, serverErr)
 	a.TelegramBot.Run(ctx, serverErr)
 
 	cancelStartTimeout() // все запустили, отменяем контекст запуска приложения
@@ -103,6 +104,7 @@ func (a *App) Close(ctx context.Context) {
 	log := slog.With("func", "app.Close")
 
 	a.TelegramBot.Close(ctx)
+	a.TelegramClient.Close(ctx)
 
 	log.Info("Application stopped")
 }

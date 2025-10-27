@@ -5,94 +5,74 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
+	"github.com/gotd/td/telegram/query"
 	"github.com/gotd/td/tg"
 )
 
 // GetAllChats Возвращает список всех чатов
-func (s *Session) GetAllChats(ctx context.Context) ([]string, error) {
-	log := slog.With("func", "tgclient.GetAllChats")
+func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
+	log := slog.With("func", "tgclient.GetAllChats", slog.Int64("user_id", s.userID))
+	log.Debug("Get all chats")
 
-	chats := make([]string, 0)
-
-	// Запуск клиента.
-	if err := s.Client.Run(ctx, func(ctx context.Context) error {
-		// Проверяем, авторизованы ли мы уже
-		authStatus, err := s.Client.Auth().Status(ctx)
-		if err != nil {
-			return fmt.Errorf("get auth status failed: %w", err)
-		}
-
-		// Если не авторизованы, выполняем полный процесс авторизации
-		if !authStatus.Authorized {
-			log.Debug("Not authenticated, starting authentication flow...", slog.Int64("user_id", s.UserID))
-			if errA := s.Authenticate(ctx); errA != nil {
-				return errA
-			}
-		} else {
-			log.Debug("Already authenticated, using existing session...", slog.Int64("user_id", s.UserID))
-		}
-
-		// Получаем список чатов
-		api := s.Client.API()
-
-		// Получение списка диалогов, отсортированных по дате последнего сообщения...
-		dialogs, err := api.MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{
-			Limit:      100,                  // Официальный лимит 100-200 диалогов за запрос.
-			OffsetDate: 0,                    // lastMessageDate, // Из последнего полученного сообщения
-			OffsetID:   0,                    // lastMessageID, // Из последнего полученного сообщения
-			OffsetPeer: &tg.InputPeerEmpty{}, // lastPeer Из последнего диалога
-
-		})
-		if err != nil {
-			return fmt.Errorf("get dialogs error: %w", err)
-		}
-
-		// Обработка результатов, должны быть готовы к обработке всех типов ответа. TODO если запрашиваем с лимитом ответ всегда будет MessagesDialogsSlice?
-		switch d := dialogs.(type) {
-		case *tg.MessagesDialogs: // https://core.telegram.org/constructor/messages.dialogs Это полный список диалогов, выдается если умещается в один ответ сервера.
-			log.Info("MessagesDialogs")
-		case *tg.MessagesDialogsSlice: // https://core.telegram.org/constructor/messages.dialogsSlice	часть диалогов (страница срез/пагинация)
-			log.Info("MessagesDialogsSlice")
-			log.Debug("dialogs", slog.Int("count", d.Count))
-			chats = GetChatsList(d)
-
-		case *tg.MessagesDialogsNotModified: // https://core.teleram.org/constructor/messages.dialogsNotModified уведомление, что со времени последнего запроса список диалогов не изменился. Возвращается, если при вызове MessageGetDialogs передать hash.
-			log.Info("MessagesDialogsNotModified")
-		default:
-			log.Error("Unexpected response type")
-		}
-
-		return nil
-	}); err != nil {
-		log.Error("Client error", slog.Any("error", err))
-		return nil, err
+	if !s.ready.Load() {
+		return nil, model.ErrNotReady
 	}
+
+	chats := make([]model.Chat, 0)
+
+	raw := tg.NewClient(s.client)
+	builder := query.GetDialogs(raw) // Используем хелпер, для получения списка диалогов, с учетом пагинации
+	builder.BatchSize(getDialogsLimit)
+
+	elems, err := builder.Collect(ctx) // Получаем все элементы
+	if err != nil {
+		return nil, fmt.Errorf("collect dialogs failed: %w", err)
+	}
+
+	for _, elem := range elems {
+
+		chat := model.Chat{}
+
+		switch d := elem.Dialog.(type) { // Получаем количество непрочитанных сообщений
+		case *tg.Dialog:
+			chat.UnreadCount = d.UnreadCount
+		case *tg.DialogFolder:
+			log.Info("tg.DialogFolder")
+		case nil:
+			log.Error("nil dialog")
+		default:
+			log.Error("Unknown peer type")
+		}
+
+		switch peer := elem.Peer.(type) {
+		case *tg.InputPeerChat:
+			chat.ID = peer.ChatID
+			chat.Title = elem.Entities.Chats()[chat.ID].Title
+		case *tg.InputPeerUser:
+			chat.ID = peer.UserID
+			chat.Title = elem.Entities.Users()[chat.ID].Username
+		case *tg.InputPeerChannel:
+			chat.ID = peer.ChannelID
+			chat.Title = elem.Entities.Channels()[chat.ID].Title
+		case *tg.InputPeerEmpty:
+			log.Info("tg.InputPeerEmpty")
+		case *tg.InputPeerSelf:
+			log.Info("tg.InputPeerSelf")
+		case *tg.InputPeerUserFromMessage:
+			log.Info("tg.InputPeerUserFromMessage")
+		case *tg.InputPeerChannelFromMessage:
+			log.Info("tg.InputPeerChannelFromMessage")
+		case nil:
+			log.Error("nil peer")
+		default:
+			log.Error("Unknown peer type")
+		}
+
+		chats = append(chats, chat)
+	}
+
+	log.Debug("Get all chats done")
 
 	return chats, nil
-}
-
-func GetChatsList(dialogs *tg.MessagesDialogsSlice) []string {
-	log := slog.With("func", "tgclient.GetChatsList")
-	log.Debug("MessagesDialogsSlice chats", slog.Int("count", len(dialogs.Chats)))
-
-	chats := make([]string, 0)
-	for _, chat := range dialogs.Chats {
-		switch c := chat.(type) {
-		case *tg.Chat:
-			chats = append(chats, fmt.Sprintf("👥 Group: %s (ID: %d)\n", c.Title, c.ID))
-		case *tg.Channel:
-			if c.Broadcast {
-				chats = append(chats, fmt.Sprintf("📢 Channel: %s (ID: %d)\n", c.Title, c.ID))
-			} else {
-				chats = append(chats, fmt.Sprintf("💬 Supergroup: %s (ID: %d)\n", c.Title, c.ID))
-			}
-		case *tg.ChatForbidden:
-			chats = append(chats, fmt.Sprintf("🚫 Forbidden chat: %s (ID: %d)\n", c.Title, c.ID))
-		case *tg.ChannelForbidden:
-			chats = append(chats, fmt.Sprintf("🚫 Forbidden channel: %s (ID: %d)\n", c.Title, c.ID))
-		default:
-			chats = append(chats, fmt.Sprintf("❓ Unknown chat type: %T\n", c))
-		}
-	}
-	return chats
 }

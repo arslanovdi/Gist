@@ -5,9 +5,8 @@ go 1.25.1
 require (
 	github.com/gotd/td v0.132.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mymmrac/telego v1.3.0
+	github.com/mymmrac/telego v1.3.1
 	github.com/spf13/viper v1.21.0
-	github.com/valyala/fasthttp v1.67.0
 	go.opentelemetry.io/otel/trace v1.38.0
 	golang.ngrok.com/ngrok/v2 v2.1.0
 )
@@ -34,7 +33,7 @@ require (
 	github.com/gotd/neo v0.1.5 // indirect
 	github.com/grbit/go-json v0.11.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -49,6 +48,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.68.0 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
@@ -59,7 +59,7 @@ require (
 	golang.ngrok.com/muxado/v2 v2.0.1 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/exp v0.0.0-20251009144603-d2f985daa21b // indirect
+	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
