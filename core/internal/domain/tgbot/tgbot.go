@@ -15,6 +15,7 @@ import (
 	"golang.ngrok.com/ngrok/v2"
 )
 
+// CoreService определяет интерфейс для взаимодействия с бизнес-логикой.
 type CoreService interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
 	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error)
@@ -90,8 +91,7 @@ func (b *Bot) Run(ctx context.Context, serverErr chan error) {
 		return
 	}
 
-	// Start server for receiving requests from the Telegram using the Ngrok tunnel
-	// TODO Запускаем http сервер на ngrok-туннеле
+	// Запускаем http сервер на ngrok-туннеле для получения запросов от Telegram
 	b.wg.Go(func() {
 		errS := b.srv.Serve(b.tun)
 		if errS != nil {
@@ -126,7 +126,7 @@ func (b *Bot) Close(ctx context.Context) {
 	log := slog.With("func", "bot.Close")
 	log.Info("Stopping...")
 
-	errD := b.bot.DeleteWebhook(ctx, &telego.DeleteWebhookParams{}) // TODO удалять вебхук в принципе необязательно? Если не удалить longPolling работать не будет.
+	errD := b.bot.DeleteWebhook(ctx, &telego.DeleteWebhookParams{})
 	if errD != nil {
 		log.Error("Delete webhook error", slog.Any("error", errD))
 	}
@@ -147,6 +147,7 @@ func (b *Bot) Close(ctx context.Context) {
 	}
 
 	// TODO Метод Close нельзя вызывать раньше чем через 10 минут после запуска.! Подумать для чего он вообще вызывается.
+	// API response close: Ok: false, Err: [429 "Too Many Requests: retry after 591", migrate to chat ID: 0, retry after: 591]
 	/*errB := b.bot.Close(ctx)
 	if errB != nil {
 		log.Error("Error shutting down bot", slog.Any("error", errB))

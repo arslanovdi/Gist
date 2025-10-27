@@ -7,6 +7,7 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 )
 
+// authorizedOnlyMiddleware middleware для проверки прав доступа пользователя.
 func (b *Bot) authorizedOnlyMiddleware() th.Handler {
 	return func(ctx *th.Context, update telego.Update) (err error) {
 		var from telego.User

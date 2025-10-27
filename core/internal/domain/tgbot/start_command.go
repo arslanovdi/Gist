@@ -12,6 +12,7 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
+// StartCommand обрабатывает команду /start от пользователя.
 func (b *Bot) StartCommand(ctx *th.Context, update telego.Update) error {
 
 	log := slog.With("func", "tgbot.StartCommand")
@@ -22,7 +23,7 @@ func (b *Bot) StartCommand(ctx *th.Context, update telego.Update) error {
 		return fmt.Errorf("internal server error: %w", errG)
 	}
 
-	err := b.sendChatsList(ctx, update, chats) // Выводим результат в чат с пользователем.
+	err := b.sendChatsWithUnreadMessages(ctx, update, chats) // Выводим результат в чат с пользователем.
 	if err != nil {
 		log.Error("Failed to send chat list", slog.Any("error", err))
 		return fmt.Errorf("failed to send chat list: %w", err)
@@ -33,7 +34,8 @@ func (b *Bot) StartCommand(ctx *th.Context, update telego.Update) error {
 	return nil
 }
 
-func (b *Bot) sendChatsList(ctx context.Context, update telego.Update, chats []model.Chat) error {
+// sendChatsWithUnreadMessages отправляет пользователю список чатов с количеством непрочитанных сообщений.
+func (b *Bot) sendChatsWithUnreadMessages(ctx context.Context, update telego.Update, chats []model.Chat) error {
 	const maxLen = 4096
 	var message strings.Builder
 

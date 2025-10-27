@@ -3,11 +3,11 @@ package core
 import (
 	"context"
 	"log/slog"
-	"sort"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 )
 
+// GetAllChats возвращает список всех чатов пользователя.
 func (g *Gist) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 	log := slog.With("func", "core.GetAllChats")
 
@@ -20,11 +20,6 @@ func (g *Gist) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 	if errG != nil {
 		return nil, errG // Прочие ошибки
 	}
-
-	// отсортировать по убыванию UnreadCount
-	sort.Slice(chats, func(i, j int) bool {
-		return chats[i].UnreadCount > chats[j].UnreadCount
-	})
 
 	log.Debug("Successfully get all chats", slog.Any("chats", chats))
 

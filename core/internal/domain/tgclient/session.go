@@ -14,12 +14,13 @@ import (
 const getDialogsLimit = 100
 
 type Session struct {
-	userID     int64
-	phone      string
+	userID int64  // Идентификатор пользователя Telegram
+	phone  string // Номер телефона, привязанный к аккаунту
+
 	client     *telegram.Client
 	wg         *sync.WaitGroup
-	ready      atomic.Bool
-	cancelFunc context.CancelFunc
+	ready      atomic.Bool        // True - клиент готов к работе
+	cancelFunc context.CancelFunc // Отмена контекста вызовет закрытие telegram.Client.
 }
 
 func NewSession(cfg *config.Config) *Session {
@@ -29,7 +30,7 @@ func NewSession(cfg *config.Config) *Session {
 		cfg.Client.AppHash,
 		telegram.Options{
 			SessionStorage: &telegram.FileSessionStorage{ // TODO Реализовать сохранение во внешнее хранилище сессий
-				Path: "session.json", // TODO только на время разработки
+				Path: "session.json",
 			},
 		},
 	)

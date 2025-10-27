@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
-	tu "github.com/mymmrac/telego/telegoutil"
 )
 
+// RegisterHandlers регистрирует обработчики команд и сообщений для бота.
 func (b *Bot) RegisterHandlers(_ context.Context, serverErr chan error) {
 	log := slog.With("func", "tgbot.RegisterHandlers")
 	log.Info("Register handlers start")
@@ -40,17 +39,4 @@ func (b *Bot) RegisterHandlers(_ context.Context, serverErr chan error) {
 	}()
 
 	log.Info("Register handlers successfully")
-}
-
-func (b *Bot) AnyCommand(ctx *th.Context, update telego.Update) error {
-	_, err := b.bot.SendMessage(ctx, tu.Messagef(
-		tu.ID(update.Message.Chat.ID),
-		"Unknown command, use /start",
-	))
-	return err
-}
-
-func (b *Bot) AnyMessage(_ *th.Context, message telego.Message) error {
-	fmt.Println("Message:", message.Text)
-	return nil
 }

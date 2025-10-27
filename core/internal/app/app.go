@@ -28,7 +28,7 @@ func New() (*App, error) {
 
 	errE := godotenv.Load(".env")
 	if errE != nil {
-		log.Error("Error loading .env file", slog.Any("error", errE)) // Это корректное поведение, т.к. в k8s этого файла может не быть, а параметры передаются через ENV. Просто логируем поведение.
+		log.Error("Error loading .env file", slog.Any("error", errE)) // Это корректное поведение, в k8s этого файла может не быть, а параметры передаются через ENV.
 	}
 
 	cfg, errC := config.LoadConfig()
@@ -65,7 +65,7 @@ func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 	serverErr := make(chan error, 1)
 	defer close(serverErr)
 
-	// TODO Запуск всего...
+	// Запуск всего...
 	ctx := context.WithoutCancel(context.Background()) // Нужен долгоживущий контекст (это просто явное его описание))).
 	a.TelegramClient.Run(ctx, serverErr)
 	a.TelegramBot.Run(ctx, serverErr)

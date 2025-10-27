@@ -8,6 +8,9 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 )
 
+// GetChatsWithUnreadMessages возвращает список чатов с непрочитанными сообщениями.
+//
+// Отбирает чаты, где количество непрочитанных сообщений больше или равно пороговому значению UnreadThreshold
 func (g *Gist) GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error) {
 
 	log := slog.With("func", "core.GetChatsWithUnreadMessages")
