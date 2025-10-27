@@ -1,0 +1,19 @@
+project:
+  debug: true
+  shutdownTimeout: 60s
+
+bot:
+  token: ""
+  ngrok_auth_token: ""
+  ngrok_domain: ""
+
+client:
+  app_id: 0
+  app_hash: ""
+  user_id: 0
+  phone: ""
+  sessionTTL: 30m
+  requestTimeout: 5m
+
+settings:
+  chat_unread_threshold: 100

@@ -1,0 +1,110 @@
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/arslanovdi/Gist/core/internal/domain/core"
+	"github.com/arslanovdi/Gist/core/internal/domain/tgbot"
+	"github.com/arslanovdi/Gist/core/internal/domain/tgclient"
+	"github.com/arslanovdi/Gist/core/internal/infra/config"
+	"github.com/joho/godotenv"
+)
+
+type App struct {
+	Cfg            *config.Config    // Конфигурация
+	TelegramBot    *tgbot.Bot        // Телеграм бот
+	TelegramClient *tgclient.Session // Телеграм клиент
+	CoreService    *core.Gist        // Слой бизнес логики
+}
+
+func New() (*App, error) {
+	log := slog.With("func", "app.New")
+
+	errE := godotenv.Load(".env")
+	if errE != nil {
+		log.Error("Error loading .env file", slog.Any("error", errE)) // Это корректное поведение, в k8s этого файла может не быть, а параметры передаются через ENV.
+	}
+
+	cfg, errC := config.LoadConfig()
+	if errC != nil {
+		return nil, fmt.Errorf("[app.New] Error loading config: %w", errC)
+	}
+
+	log.Info("configuration loaded")
+
+	telegramClient := tgclient.NewSession(cfg)
+
+	coreService := core.NewGist(telegramClient, cfg)
+
+	bot, errB := tgbot.New(cfg, coreService)
+	if errB != nil {
+		return nil, fmt.Errorf("[app.new] bot initialization failed: %w", errB)
+	}
+
+	// coreService.SetTelegramBot(bot) // Внедрение зависимости.
+
+	return &App{
+		Cfg:            cfg,
+		TelegramBot:    bot,
+		TelegramClient: telegramClient,
+		CoreService:    coreService,
+	}, nil
+}
+
+func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
+
+	log := slog.With("func", "app.Run")
+
+	// Канал ошибок при запуске
+	serverErr := make(chan error, 1)
+	defer close(serverErr)
+
+	// Запуск всего...
+	ctx := context.WithoutCancel(context.Background()) // Нужен долгоживущий контекст (это просто явное его описание))).
+	a.TelegramClient.Run(ctx, serverErr)
+	a.TelegramBot.Run(ctx, serverErr)
+
+	cancelStartTimeout() // все запустили, отменяем контекст запуска приложения
+	log.Info("Application started")
+
+	// graceful shutdown
+	stop := make(chan os.Signal, 1)
+	defer close(stop)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case <-stop:
+		log.Info("Shutting down...")
+	case err := <-serverErr:
+		log.Info("Error on Run. Shutdown...", slog.Any("error", err))
+	}
+
+	ctxShutdown, cancelShutdownTimeout := context.WithTimeout(context.Background(), a.Cfg.Project.ShutdownTimeout) // контекст останова приложения
+	defer cancelShutdownTimeout()
+	go func() {
+		<-ctxShutdown.Done()
+		if errors.Is(ctxShutdown.Err(), context.DeadlineExceeded) {
+			log.Warn("Application shutdown time exceeded")
+		}
+	}()
+
+	a.Close(ctxShutdown)
+
+	return nil
+}
+
+func (a *App) Close(ctx context.Context) {
+
+	log := slog.With("func", "app.Close")
+
+	a.TelegramBot.Close(ctx)
+	a.TelegramClient.Close(ctx)
+
+	log.Info("Application stopped")
+}
