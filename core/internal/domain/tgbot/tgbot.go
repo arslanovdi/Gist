@@ -19,11 +19,17 @@ import (
 type CoreService interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
 	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error)
+	GetFavoriteChats(ctx context.Context) ([]model.Chat, error)
+	GetChatGist(ctx context.Context, chatID int64) (string, error)
+	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error)
+	ChangeFavorites(ctx context.Context, chatID int64) error
 }
 
 type Bot struct {
 	cfg           *config.Config
 	allowedUserID int64
+
+	LastMessageID int // id редактируемого сообщения. В боте всегда одно сообщение, которое мы редактируем.
 
 	// параметры ngrok туннеля
 	srv   *http.Server

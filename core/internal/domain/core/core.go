@@ -8,6 +8,8 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 )
 
+const ttl = time.Minute
+
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
 }
@@ -16,9 +18,33 @@ type TelegramClient interface {
 type Gist struct {
 	tgClient TelegramClient
 
+	cache      map[int64]*model.Chat // Для быстрого доступа
+	chats      []model.Chat
+	lastUpdate time.Time
+	ttl        time.Duration
+
 	UnreadThreshold int
 
 	requestTimeout time.Duration
+}
+
+func (g *Gist) ChangeFavorites(_ context.Context, chatID int64) error {
+	// TODO implement me, save to DB
+	chat, ok := g.cache[chatID]
+	if !ok {
+		return model.ErrChatNotFoundInCache
+	}
+
+	chat.IsFavorite = !chat.IsFavorite
+	return nil
+}
+
+func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, error) {
+	chat, ok := g.cache[chatID]
+	if !ok {
+		return nil, model.ErrChatNotFoundInCache
+	}
+	return chat, nil
 }
 
 func NewGist(tgClient TelegramClient, cfg *config.Config) *Gist {
@@ -26,5 +52,6 @@ func NewGist(tgClient TelegramClient, cfg *config.Config) *Gist {
 		tgClient:        tgClient,
 		requestTimeout:  cfg.Client.RequestTimeout,
 		UnreadThreshold: cfg.Settings.ChatUnreadThreshold,
+		ttl:             ttl,
 	}
 }
