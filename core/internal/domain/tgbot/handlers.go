@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/tgbot/router"
 	th "github.com/mymmrac/telego/telegohandler"
 )
 
@@ -12,6 +13,23 @@ import (
 func (b *Bot) RegisterHandlers(_ context.Context, serverErr chan error) {
 	log := slog.With("func", "tgbot.RegisterHandlers")
 	log.Info("Register handlers start")
+
+	base := &router.BaseHandler{
+		Bot:         b.bot,
+		CoreService: b.coreService,
+		UserID:      b.allowedUserID,
+	}
+
+	// menu
+	b.router.RegisterHandler(router.NewMainMenuHandler(base))
+	b.router.RegisterHandler(router.NewUnreadMenuHandler(base))
+	b.router.RegisterHandler(router.NewFavoritesMenuHandler(base))
+	b.router.RegisterHandler(router.NewChatMenuHandler(base))
+	b.router.RegisterHandler(router.NewSettingsMenuHandler(base))
+	// actions
+	b.router.RegisterHandler(router.NewAddToFavoritesHandler(base))
+	b.router.RegisterHandler(router.NewTTSHandler(base))
+	b.router.RegisterHandler(router.NewMarkAsReadHandler(base))
 
 	var errH error
 	b.bh, errH = th.NewBotHandler(b.bot, b.updates)
@@ -23,12 +41,19 @@ func (b *Bot) RegisterHandlers(_ context.Context, serverErr chan error) {
 	// Если команда соответствует нескольким обработчикам сработает первый из зарегистрированных
 	// сначала нужно определять частные, затем общие обработчики.
 
+	// middlewares
 	b.bh.Use(th.PanicRecovery())           // Обертка PanicRecovery, вызывается первым.
 	b.bh.Use(b.authorizedOnlyMiddleware()) // Обертка отсеивает запросы всех пользователей, кроме ID указанного в env.
+
+	// commands
 	b.bh.Handle(b.StartCommand, th.CommandEqual("start"))
 	b.bh.Handle(b.AnyCommand, th.AnyCommand())
 
-	b.bh.HandleMessage(b.AnyMessage, th.AnyMessage())
+	// messages
+	b.bh.HandleMessage(b.HandleForwardedMessage, th.AnyMessage())
+
+	// callback-запросы (инлайн-кнопки), вызываем обработчик роутера
+	b.bh.HandleCallbackQuery(b.router.Handle, th.AnyCallbackQuery())
 
 	go func() {
 		errS := b.bh.Start()

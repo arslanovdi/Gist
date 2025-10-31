@@ -8,22 +8,18 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/arslanovdi/Gist/core/internal/domain/model"
+	"github.com/arslanovdi/Gist/core/internal/domain/tgbot/router"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	"golang.ngrok.com/ngrok/v2"
 )
 
-// CoreService определяет интерфейс для взаимодействия с бизнес-логикой.
-type CoreService interface {
-	GetAllChats(ctx context.Context) ([]model.Chat, error)
-	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error)
-}
-
 type Bot struct {
 	cfg           *config.Config
 	allowedUserID int64
+
+	// LastMessageID int // id редактируемого сообщения. В боте всегда одно сообщение, которое мы редактируем.
 
 	// параметры ngrok туннеля
 	srv   *http.Server
@@ -36,10 +32,12 @@ type Bot struct {
 
 	wg *sync.WaitGroup // Контроль запущенных горутин (веб-сервер)
 
-	coreService CoreService // Слой бизнес-логики
+	coreService router.CoreService // Слой бизнес-логики
+
+	router *router.CallbackRouter // Роутер меню телеграм бота
 }
 
-func New(cfg *config.Config, coreService CoreService) (*Bot, error) {
+func New(cfg *config.Config, coreService router.CoreService) (*Bot, error) {
 	log := slog.With("func", "bot.New")
 	log.Info("Initializing bot")
 
@@ -69,6 +67,7 @@ func New(cfg *config.Config, coreService CoreService) (*Bot, error) {
 		coreService:   coreService,
 		wg:            &sync.WaitGroup{},
 		allowedUserID: cfg.Client.UserID,
+		router:        router.NewCallbackRouter(),
 	}, nil
 }
 
