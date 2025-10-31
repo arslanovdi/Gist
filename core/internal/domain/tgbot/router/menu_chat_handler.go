@@ -22,17 +22,18 @@ func (h *ChatMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
-	h.Log.Debug("handling main menu callback")
+	log := slog.With("func", "router.ChatMenuHandler")
+	log.Debug("handling main menu callback")
 
 	_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID) // Метод сохраняет суть в структуру Detail
 	if errG != nil {
-		h.Log.Error("GetChatGist", slog.Any("error", errG))
+		log.Error("GetChatGist", slog.Any("error", errG))
 	}
 
 	chatDetail, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)
 	if errD != nil {
 		chatDetail = &model.Chat{}
-		h.Log.Error("GetChatDetail", slog.Any("error", errD))
+		log.Error("GetChatDetail", slog.Any("error", errD))
 	}
 
 	return h.showChatDetail(ctx, *chatDetail, payload.Src)

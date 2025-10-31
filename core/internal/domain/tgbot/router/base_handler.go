@@ -18,15 +18,15 @@ const (
 type BaseHandler struct {
 	Bot         *telego.Bot
 	CoreService CoreService
-	Log         *slog.Logger
 
 	LastMessageID int   // id редактируемого сообщения. В боте всегда одно сообщение, которое мы редактируем.
 	UserID        int64 // id пользователя = id чата с ним, используется для вывода сообщений ботом.
 }
 
 func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu Menu) error {
+	log := slog.With("func", "router.showChatDetail")
 
-	inlineKeyboard := buildChatDetailMenu(chat.ID, menu, chat.IsFavorite)
+	inlineKeyboard := b.buildChatDetailMenu(chat.ID, menu, chat.IsFavorite)
 
 	text := fmt.Sprintf("📩 %s\n🔍 Краткий пересказ: %s\n📌 Непрочитано: %d сообщения ", chat.Title, chat.Gist, chat.UnreadCount)
 
@@ -42,7 +42,7 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu 
 		if errE == nil {
 			return nil // Успешно отредактировали
 		}
-		b.Log.Error("edit message with chat detail menu error", slog.Any("error", errE))
+		log.Error("edit message with chat detail menu error", slog.Any("error", errE))
 		// Иначе — отправим новое
 	}
 
@@ -54,7 +54,7 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu 
 
 	msg, errS := b.Bot.SendMessage(ctx, message)
 	if errS != nil {
-		b.Log.Error("send message with chat detail menu error", slog.Any("error", errS))
+		log.Error("send message with chat detail menu error", slog.Any("error", errS))
 		return fmt.Errorf("send message with chat detail menu error: %w", errS)
 	}
 
@@ -63,16 +63,16 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu 
 }
 
 // Детали чата
-func buildChatDetailMenu(chatID int64, menu Menu, isFavorite bool) *telego.InlineKeyboardMarkup {
+func (b *BaseHandler) buildChatDetailMenu(chatID int64, menu Menu, isFavorite bool) *telego.InlineKeyboardMarkup {
 	var rows [][]telego.InlineKeyboardButton
 
 	// Действия
-	markReadCb, _ := CallbackPayload{Action: ActionMarkRead, ChatID: chatID}.String()
+	markReadCb := mustCallback(CallbackPayload{Action: ActionMarkRead, ChatID: chatID})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("✅ Пометить прочитанным").WithCallbackData(markReadCb),
 	))
 
-	ttsCb, _ := CallbackPayload{Action: ActionTTS, ChatID: chatID}.String()
+	ttsCb := mustCallback(CallbackPayload{Action: ActionTTS, ChatID: chatID})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("🔊 Озвучить").WithCallbackData(ttsCb),
 	))
@@ -84,19 +84,19 @@ func buildChatDetailMenu(chatID int64, menu Menu, isFavorite bool) *telego.Inlin
 		favLabel = "🗑 Убрать из избранного"
 		add = false
 	}
-	toggleFavCb, _ := CallbackPayload{
+	toggleFavCb := mustCallback(CallbackPayload{
 		Action: ActionToggleFav,
 		Src:    menu,
 		ChatID: chatID,
 		Add:    &add,
-	}.String()
+	})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton(favLabel).WithCallbackData(toggleFavCb),
 	))
 
 	// Назад
-	backMainCb, _ := CallbackPayload{Menu: MenuMain}.String()
-	backCb, _ := CallbackPayload{Menu: menu}.String()
+	backMainCb := mustCallback(CallbackPayload{Menu: MenuMain})
+	backCb := mustCallback(CallbackPayload{Menu: menu})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("Домой").WithCallbackData(backMainCb),
 		tu.InlineKeyboardButton("← Назад к чатам").WithCallbackData(backCb),
@@ -119,7 +119,7 @@ func (b *BaseHandler) buildChatsMenu(chats []model.Chat, page int, menu Menu) *t
 	for i := start; i < end; i++ {
 		chat := chats[i]
 		label := fmt.Sprintf("📩 %s (%d)", chat.Title, chat.UnreadCount)
-		cb, _ := CallbackPayload{Menu: MenuChat, ChatID: chat.ID, Src: menu}.String()
+		cb := mustCallback(CallbackPayload{Menu: MenuChat, ChatID: chat.ID, Src: menu})
 		rows = append(rows, tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton(label).WithCallbackData(cb),
 		))
@@ -128,11 +128,11 @@ func (b *BaseHandler) buildChatsMenu(chats []model.Chat, page int, menu Menu) *t
 	// Кнопки навигации
 	var navButtons []telego.InlineKeyboardButton
 	if page > 0 {
-		cb, _ := CallbackPayload{Menu: menu, Page: page - 1}.String()
+		cb := mustCallback(CallbackPayload{Menu: menu, Page: page - 1})
 		navButtons = append(navButtons, tu.InlineKeyboardButton("◀️").WithCallbackData(cb))
 	}
 	if end < len(chats) {
-		cb, _ := CallbackPayload{Menu: menu, Page: page + 1}.String()
+		cb := mustCallback(CallbackPayload{Menu: menu, Page: page + 1})
 		navButtons = append(navButtons, tu.InlineKeyboardButton("▶️").WithCallbackData(cb))
 	}
 
@@ -141,7 +141,7 @@ func (b *BaseHandler) buildChatsMenu(chats []model.Chat, page int, menu Menu) *t
 	}
 
 	// Кнопка назад
-	backCb, _ := CallbackPayload{Menu: MenuMain}.String()
+	backCb := mustCallback(CallbackPayload{Menu: MenuMain})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("← Назад").WithCallbackData(backCb),
 	))

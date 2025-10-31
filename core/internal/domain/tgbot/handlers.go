@@ -17,7 +17,6 @@ func (b *Bot) RegisterHandlers(_ context.Context, serverErr chan error) {
 	base := &router.BaseHandler{
 		Bot:         b.bot,
 		CoreService: b.coreService,
-		Log:         slog.Default(),
 		UserID:      b.allowedUserID,
 	}
 

@@ -25,18 +25,19 @@ func (h *UnreadMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 func (h *UnreadMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
-	h.Log.Debug("handling main menu callback")
+	log := slog.With("func", "router.UnreadMenuHandler")
+	log.Debug("handling unread menu callback")
 
 	chats, errF := h.CoreService.GetChatsWithUnreadMessages(ctx)
 	if errF != nil {
-		h.Log.Error("GetChatsWithUnreadMessages", slog.Any("error", errF))
+		log.Error("GetChatsWithUnreadMessages", slog.Any("error", errF))
 	}
 
 	return h.showUnreadChats(ctx, chats, payload.Page)
 }
 
 func (h *UnreadMenuHandler) showUnreadChats(ctx context.Context, chats []model.Chat, page int) error {
-	log := slog.With("func", "tgbot.showUnreadChats")
+	log := slog.With("func", "router.showUnreadChats")
 	log.Debug("showUnreadChats")
 
 	inlineKeyboard := h.buildChatsMenu(chats, page, MenuUnread)

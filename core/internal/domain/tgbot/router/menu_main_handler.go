@@ -24,7 +24,8 @@ func (h *MainMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 func (h *MainMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, _ *CallbackPayload) error {
-	h.Log.Debug("handling main menu callback")
+	log := slog.With("func", "router.MainMenuHandler")
+	log.Debug("handling main menu callback")
 	return h.showMainMenu(ctx)
 }
 
@@ -78,12 +79,4 @@ func buildMainMenu() *telego.InlineKeyboardMarkup {
 			tu.InlineKeyboardButton("⚙️ Настройки").WithCallbackData(mustCallback(CallbackPayload{Menu: MenuSettings})),
 		),
 	)
-}
-
-func mustCallback(cp CallbackPayload) string {
-	s, err := cp.String()
-	if err != nil {
-		panic("callback too long: " + err.Error())
-	}
-	return s
 }

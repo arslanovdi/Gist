@@ -25,18 +25,19 @@ func (h *FavoritesMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 func (h *FavoritesMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
-	h.Log.Debug("handling favorites menu callback")
+	log := slog.With("func", "router.FavoritesMenuHandler")
+	log.Debug("handling favorites menu callback")
 
 	chats, errF := h.CoreService.GetFavoriteChats(ctx)
 	if errF != nil {
-		h.Log.Error("GetFavoriteChats", slog.Any("error", errF))
+		log.Error("GetFavoriteChats", slog.Any("error", errF))
 	}
 
 	return h.showFavoriteChats(ctx, chats, payload.Page)
 }
 
 func (h *FavoritesMenuHandler) showFavoriteChats(ctx context.Context, chats []model.Chat, page int) error {
-	log := slog.With("func", "tgbot.showFavoriteChats")
+	log := slog.With("func", "router.showFavoriteChats")
 	log.Debug("showFavoriteChats")
 
 	inlineKeyboard := h.buildChatsMenu(chats, page, MenuFavorites)

@@ -52,7 +52,7 @@ func (r *CallbackRouter) Handle(ctx *th.Context, query telego.CallbackQuery) err
 		return fmt.Errorf("no callback data")
 	}
 
-	payload, err := ParseCallback(query.Data)
+	payload, err := parseCallback(query.Data)
 	if err != nil {
 		r.log.Error("failed to parse callback data", "error", err, "data", query.Data)
 		return fmt.Errorf("invalid callback data: %w", err)

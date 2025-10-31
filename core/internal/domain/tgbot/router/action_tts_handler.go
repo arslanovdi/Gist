@@ -1,6 +1,8 @@
 package router
 
 import (
+	"log/slog"
+
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 )
@@ -18,7 +20,8 @@ func (h *TTSHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 func (h *TTSHandler) Handle(_ *th.Context, _ telego.CallbackQuery, _ *CallbackPayload) error {
-	h.Log.Debug("handling TTS callback")
+	log := slog.With("func", "TTSHandler")
+	log.Debug("handling TTS callback")
 
 	// TODO implement me
 	return nil
