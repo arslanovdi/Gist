@@ -1,4 +1,4 @@
-package tgbot
+package router
 
 import (
 	"encoding/json"
@@ -45,7 +45,7 @@ func (cp CallbackPayload) String() (string, error) {
 	return string(data), nil
 }
 
-// Парсинг из строки
+// ParseCallback
 func ParseCallback(data string) (*CallbackPayload, error) {
 	var cp CallbackPayload
 	if err := json.Unmarshal([]byte(data), &cp); err != nil {

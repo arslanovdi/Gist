@@ -1,37 +1,34 @@
 package tgbot
 
-import (
-	"fmt"
-	"log/slog"
-
-	"github.com/arslanovdi/Gist/core/internal/domain/model"
-	"github.com/mymmrac/telego"
-	th "github.com/mymmrac/telego/telegohandler"
-)
-
-func (b *Bot) handleCallback(ctx *th.Context, query telego.CallbackQuery) error {
+/*func (b *Bot) handleCallbacold(ctx *th.Context, query telego.CallbackQuery) error {
 	log := slog.With("func", "tgbot.handleCallback")
 	log.Debug("handleCallback")
 
 	// Всё, что вам нужно — уже в query
 	if query.Data == "" {
-		log.Debug("handleCallback: query.Data is empty")
+		log.Error("handleCallback: query.Data is empty")
 		return fmt.Errorf("no callback data found")
 	}
 
 	// Парсим payload
-	payload, err := ParseCallback(query.Data)
-	if err != nil {
-		_ = b.bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
+	payload, errP := ParseCallback(query.Data)
+	if errP != nil {
+		errC := b.bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
 			CallbackQueryID: query.ID,
 			Text:            "⚠️ Некорректные данные",
 			ShowAlert:       true,
 		})
-		return fmt.Errorf("parse callback data err: %w", err)
+		if errC != nil {
+			log.Error("parse callback answer error", slog.Any("error", errC))
+		}
+
+		log.Error("handleCallback: ", slog.Any("payload", payload), slog.Any("error", errP))
+		return fmt.Errorf("parse callback data err: %w", errP)
 	}
 
-	fmt.Println(payload)
+	fmt.Println(payload) // TODO delete this
 
+	// Роутер меню телеграм бота
 	switch {
 	// Переход на главное меню
 	case payload.Menu == MenuMain:
@@ -71,12 +68,9 @@ func (b *Bot) handleCallback(ctx *th.Context, query telego.CallbackQuery) error 
 		b.showChatDetail(ctx, *chatDetail, payload.Src)
 
 	case payload.Menu == MenuSettings:
-		// TODO implement me
+	// TODO implement me
 	case payload.Action == ActionMarkRead:
 		// TODO implement me
-		/*b.markAsRead(payload.ChatID)
-		b.answerCallback(cb.ID, "✅ Прочитано!")
-		// Обновите сообщение или вернитесь назад*/
 	case payload.Action == ActionTTS:
 		// TODO implement me
 	case payload.Action == ActionToggleFav:
@@ -102,7 +96,9 @@ func (b *Bot) handleCallback(ctx *th.Context, query telego.CallbackQuery) error 
 		if errA != nil {
 			log.Error("default AnswerCallbackQuery", slog.Any("error", errA))
 		}
+
+		log.Error("payload unknown command: ", slog.Any("payload", payload))
 	}
 
 	return nil
-}
+}*/

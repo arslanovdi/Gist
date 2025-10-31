@@ -1,0 +1,73 @@
+package router
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
+	"github.com/mymmrac/telego"
+	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
+)
+
+// Вывод списка непрочитанных чатов
+type UnreadMenuHandler struct {
+	*BaseHandler
+}
+
+func NewUnreadMenuHandler(base *BaseHandler) *UnreadMenuHandler {
+	return &UnreadMenuHandler{BaseHandler: base}
+}
+
+func (h *UnreadMenuHandler) CanHandle(payload *CallbackPayload) bool {
+	return payload.Menu == MenuUnread
+}
+
+func (h *UnreadMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
+	h.Log.Debug("handling main menu callback")
+
+	chats, errF := h.CoreService.GetChatsWithUnreadMessages(ctx)
+	if errF != nil {
+		h.Log.Error("GetChatsWithUnreadMessages", slog.Any("error", errF))
+	}
+
+	return h.showUnreadChats(ctx, chats, payload.Page)
+}
+
+func (h *UnreadMenuHandler) showUnreadChats(ctx context.Context, chats []model.Chat, page int) error {
+	log := slog.With("func", "tgbot.showUnreadChats")
+	log.Debug("showUnreadChats")
+
+	inlineKeyboard := h.buildChatsMenu(chats, page, MenuUnread)
+
+	if h.LastMessageID != 0 {
+		// Пытаемся отредактировать
+		message := tu.EditMessageText(
+			tu.ID(h.UserID),
+			h.LastMessageID,
+			fmt.Sprintf("📬 Непрочитанные чаты (%d шт.)", len(chats))).WithReplyMarkup(inlineKeyboard)
+
+		_, errE := h.Bot.EditMessageText(ctx, message)
+		if errE == nil {
+			return nil // Успешно отредактировали
+		}
+		log.Error("edit message with unread chats menu error", slog.Any("error", errE))
+		// Иначе — отправим новое
+	}
+
+	// Отправляем новое
+	message := tu.Message(
+		tu.ID(h.UserID),
+		fmt.Sprintf("📬 Непрочитанные чаты (%d шт.)", len(chats)),
+	).WithReplyMarkup(inlineKeyboard)
+
+	msg, errS := h.Bot.SendMessage(ctx, message)
+	if errS != nil {
+		log.Error("send message with unread chats menu error", slog.Any("error", errS))
+		return fmt.Errorf("send message with unread chats menu error: %w", errS)
+	}
+
+	h.LastMessageID = msg.MessageID // Сохраняем номер сообщения
+	return nil
+}
