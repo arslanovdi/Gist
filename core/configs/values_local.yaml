@@ -16,4 +16,4 @@ client:
   requestTimeout: 5m
 
 settings:
-  chat_unread_threshold: 100
+  chat_unread_threshold: 10
