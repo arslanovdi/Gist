@@ -19,7 +19,7 @@ type TelegramClient interface {
 type Gist struct {
 	tgClient TelegramClient
 
-	cache      map[int64]*model.Chat // Для быстрого доступа
+	cache      map[int64]*model.Chat // Для быстрого доступа TODO вынести кэш в отдельный слой?
 	chats      []model.Chat
 	lastUpdate time.Time
 	ttl        time.Duration
