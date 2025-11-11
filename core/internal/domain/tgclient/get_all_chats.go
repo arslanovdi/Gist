@@ -23,7 +23,7 @@ func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 
 	raw := tg.NewClient(s.client)
 	builder := query.GetDialogs(raw) // Используем хелпер, для получения списка диалогов, с учетом пагинации
-	builder.BatchSize(getDialogsLimit)
+	builder.BatchSize(batchLimit)
 
 	elems, err := builder.Collect(ctx) // Получаем все элементы
 	if err != nil {
@@ -37,6 +37,7 @@ func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 		switch d := elem.Dialog.(type) { // Получаем количество непрочитанных сообщений
 		case *tg.Dialog:
 			chat.UnreadCount = d.UnreadCount
+			chat.LastReadMessageID = d.ReadInboxMaxID
 		case *tg.DialogFolder:
 			log.Info("tg.DialogFolder")
 		case nil:
@@ -68,6 +69,8 @@ func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 		default:
 			log.Error("Unknown peer type")
 		}
+
+		chat.Peer = elem.Peer
 
 		chats = append(chats, chat)
 	}

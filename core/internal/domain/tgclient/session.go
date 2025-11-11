@@ -11,7 +11,7 @@ import (
 	"github.com/gotd/td/telegram"
 )
 
-const getDialogsLimit = 100
+const batchLimit = 100
 
 type Session struct {
 	userID int64  // Идентификатор пользователя Telegram

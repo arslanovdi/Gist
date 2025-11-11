@@ -12,13 +12,14 @@ const ttl = time.Minute
 
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
+	FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error)
 }
 
 // Gist представляет основной сервис приложения, который инкапсулирует бизнес-логику.
 type Gist struct {
 	tgClient TelegramClient
 
-	cache      map[int64]*model.Chat // Для быстрого доступа
+	cache      map[int64]*model.Chat // Для быстрого доступа TODO вынести кэш в отдельный слой?
 	chats      []model.Chat
 	lastUpdate time.Time
 	ttl        time.Duration
