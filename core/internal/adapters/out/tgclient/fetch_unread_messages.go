@@ -11,8 +11,11 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+// FetchUnreadMessages выгружает непрочитанные сообщения из телеграмм чата
+//
+//nolint:gocognit
 func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error) {
-	log := slog.With("func", "tgclient.FetchUnreadMessages", slog.Any("chatID", chat))
+	log := slog.With(slog.String("func", "tgclient.FetchUnreadMessages"), slog.Any("chatID", chat))
 	log.Debug("Get unread messages from chat")
 
 	if !s.ready.Load() {
@@ -22,6 +25,7 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]m
 	msgs := make([]model.Message, 0)
 
 	raw := tg.NewClient(s.client)
+
 	builder := query.Messages(raw)
 
 	historyBuilder := builder.GetHistory(chat.Peer)
@@ -38,6 +42,7 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]m
 		tgMsg, ok := iter.Value().Msg.(*tg.Message)
 		if !ok {
 			log.Error("Got message with unexpected type", slog.Any("type", iter.Value().Msg))
+
 			continue
 		}
 

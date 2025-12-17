@@ -6,13 +6,13 @@ import (
 )
 
 type Message struct {
-	ID           int       // ID сообщения в Telegram
-	SenderID     int64     // ID отправителя
-	Text         string    // Текст сообщения
-	Timestamp    time.Time // Время отправки сообщения
-	IsEdited     bool      // Было ли сообщение отредактировано
-	ReplyToMsgID int       // ID сообщения, на которое отвечают (0, если не ответ)
-	IsForwarded  bool      // Является ли сообщение пересланным
+	ID           int       `json:"id"`              // ID сообщения в Telegram
+	SenderID     int64     `json:"sender_id"`       // ID отправителя
+	Text         string    `json:"text"`            // Текст сообщения
+	Timestamp    time.Time `json:"timestamp"`       // Время отправки сообщения
+	IsEdited     bool      `json:"is_edited"`       // Было ли сообщение отредактировано
+	ReplyToMsgID int       `json:"reply_to_msg_id"` // ID сообщения, на которое отвечают (0, если не ответ)
+	IsForwarded  bool      `json:"is_forwarded"`    // Является ли сообщение пересланным
 }
 
 // FormatForAnalysis возвращает отформатированное сообщение для анализа

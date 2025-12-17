@@ -9,9 +9,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/arslanovdi/Gist/core/internal/adapters/in/tgbot"
+	"github.com/arslanovdi/Gist/core/internal/adapters/out/llm"
+	"github.com/arslanovdi/Gist/core/internal/adapters/out/tgclient"
 	"github.com/arslanovdi/Gist/core/internal/domain/core"
-	"github.com/arslanovdi/Gist/core/internal/domain/tgbot"
-	"github.com/arslanovdi/Gist/core/internal/domain/tgclient"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/joho/godotenv"
 )
@@ -21,9 +22,10 @@ type App struct {
 	TelegramBot    *tgbot.Bot        // Телеграм бот
 	TelegramClient *tgclient.Session // Телеграм клиент
 	CoreService    *core.Gist        // Слой бизнес логики
+	LLM            *llm.GenkitService
 }
 
-func New() (*App, error) {
+func New(ctx context.Context) (*App, error) {
 	log := slog.With("func", "app.New")
 
 	errE := godotenv.Load(".env")
@@ -40,7 +42,12 @@ func New() (*App, error) {
 
 	telegramClient := tgclient.NewSession(cfg)
 
-	coreService := core.NewGist(telegramClient, cfg)
+	llmClient, errL := llm.NewGenkitService(ctx, cfg)
+	if errL != nil {
+		return nil, fmt.Errorf("[app.new] llm initialization failed: %w", errL)
+	}
+
+	coreService := core.NewGist(telegramClient, llmClient, cfg)
 
 	bot, errB := tgbot.New(cfg, coreService)
 	if errB != nil {
@@ -54,6 +61,7 @@ func New() (*App, error) {
 		TelegramBot:    bot,
 		TelegramClient: telegramClient,
 		CoreService:    coreService,
+		LLM:            llmClient,
 	}, nil
 }
 

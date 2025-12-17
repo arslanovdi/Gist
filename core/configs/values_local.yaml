@@ -17,3 +17,17 @@ client:
 
 settings:
   chat_unread_threshold: 10
+
+llm:
+  development: true
+  client_type: "OpenRouter" #  Ollama, OpenRouter, Gemini, OpenAI
+  Ollama:
+    server_address: "http://host.docker.internal:11434"
+    timeout: 60     #seconds
+    model: "glm-4.6:cloud"
+  OpenRouter:
+    model: "xiaomi/mimo-v2-flash:free" #"tngtech/deepseek-r1t2-chimera:free"
+  Gemini:
+    model: "gemini-2.5-flash"
+  OpenAI:
+    model: "gpt-4o"

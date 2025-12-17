@@ -8,7 +8,7 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 )
 
-// Вывод информации по выбранному чату
+// ChatMenuHandler Вывод информации по выбранному чату
 type ChatMenuHandler struct {
 	*BaseHandler
 }

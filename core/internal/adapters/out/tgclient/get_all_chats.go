@@ -22,7 +22,9 @@ func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 	chats := make([]model.Chat, 0)
 
 	raw := tg.NewClient(s.client)
-	builder := query.GetDialogs(raw) // Используем хелпер, для получения списка диалогов, с учетом пагинации
+	builder := query.GetDialogs(
+		raw,
+	) // Используем хелпер, для получения списка диалогов, с учетом пагинации
 	builder.BatchSize(batchLimit)
 
 	elems, err := builder.Collect(ctx) // Получаем все элементы

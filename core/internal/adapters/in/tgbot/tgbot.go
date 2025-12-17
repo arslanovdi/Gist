@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/arslanovdi/Gist/core/internal/domain/tgbot/router"
+	"github.com/arslanovdi/Gist/core/internal/adapters/in/tgbot/router"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"

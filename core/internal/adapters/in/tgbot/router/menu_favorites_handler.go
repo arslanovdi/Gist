@@ -11,7 +11,7 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-// Вывод списка избранных чатов.
+// FavoritesMenuHandler Вывод списка избранных чатов.
 type FavoritesMenuHandler struct {
 	*BaseHandler
 }

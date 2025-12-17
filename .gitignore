@@ -1,3 +1,5 @@
+core/.env
 .env
 .idea
+.genkit
 session.json

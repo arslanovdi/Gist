@@ -11,7 +11,7 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-// Вывод списка непрочитанных чатов
+// UnreadMenuHandler Вывод списка непрочитанных чатов
 type UnreadMenuHandler struct {
 	*BaseHandler
 }

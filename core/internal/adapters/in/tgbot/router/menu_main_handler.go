@@ -10,7 +10,7 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-// Вывод главного меню
+// MainMenuHandler Вывод главного меню
 type MainMenuHandler struct {
 	*BaseHandler
 }

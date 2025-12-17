@@ -15,9 +15,14 @@ type TelegramClient interface {
 	FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error)
 }
 
+type LLMClient interface {
+	GetChatGist(ctx context.Context, messages []model.Message) (string, error)
+}
+
 // Gist представляет основной сервис приложения, который инкапсулирует бизнес-логику.
 type Gist struct {
-	tgClient TelegramClient
+	tgClient  TelegramClient
+	llmClient LLMClient
 
 	cache      map[int64]*model.Chat // Для быстрого доступа TODO вынести кэш в отдельный слой?
 	chats      []model.Chat
@@ -48,9 +53,10 @@ func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, erro
 	return chat, nil
 }
 
-func NewGist(tgClient TelegramClient, cfg *config.Config) *Gist {
+func NewGist(tgClient TelegramClient, llmClient LLMClient, cfg *config.Config) *Gist {
 	return &Gist{
 		tgClient:        tgClient,
+		llmClient:       llmClient,
 		requestTimeout:  cfg.Client.RequestTimeout,
 		UnreadThreshold: cfg.Settings.ChatUnreadThreshold,
 		ttl:             ttl,
