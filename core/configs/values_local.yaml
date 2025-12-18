@@ -6,6 +6,7 @@ bot:
   token: ""
   ngrok_auth_token: ""
   ngrok_domain: ""
+  read_header_timeout: 10s
 
 client:
   app_id: 0

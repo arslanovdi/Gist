@@ -1,3 +1,4 @@
+// Package llm содержит методы для работы с LLM.
 package llm
 
 import (
@@ -15,18 +16,25 @@ import (
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/ollama"
-	"github.com/joho/godotenv"
 	"github.com/openai/openai-go"
 	"google.golang.org/genai"
 )
 
-const envFileName = ".env"
+/*
+ENV must be set for specific llm
+export OPENROUTER_API_KEY=<your API key>
+export GEMINI_API_KEY=<your API key>
+export OPENAI_API_KEY=<your API key>
+etc..
+*/
 
 // Тип входных данных для запроса к LLM.
 type chat struct {
 	Messages []model.Message `json:"messages"`
 }
 
+// GenkitService структура для работы с LLM через фреймворк Genkit.
+// Обеспечивает единый интерфейс для взаимодействия с различными LLM-провайдерами
 type GenkitService struct {
 	g      *genkit.Genkit
 	config any // Настройки модели, задаются при инициализации фреймворка
@@ -141,6 +149,8 @@ func (s *GenkitService) initOpenAI(ctx context.Context, cfg *config.Config) erro
 
 // NewGenkitService инициализация фреймворка для работы с LLM.
 // LLM задается через конфигурационный файл.
+//
+//nolint:gocyclo //cyclo-11
 func NewGenkitService(ctx context.Context, cfg *config.Config) (*GenkitService, error) {
 
 	log := slog.With("func", "llm.NewGenkitService")
@@ -148,14 +158,6 @@ func NewGenkitService(ctx context.Context, cfg *config.Config) (*GenkitService, 
 	if cfg.LLM.Development {
 		_ = os.Setenv("GENKIT_ENV", "dev") // During local development (when the `GENKIT_ENV` environment variable is set to `dev`), Init also starts the Reflection API server as a background goroutine. This server provides metadata about registered actions and is used by developer tools. By default, it listens on port 3100.
 		log.Info("Start genkit in development mode")
-	}
-
-	// export OPENROUTER_API_KEY=<your API key>
-	// export GEMINI_API_KEY=<your API key>
-	// export OPENAI_API_KEY=<your API key>
-	errE := godotenv.Load(envFileName)
-	if errE != nil {
-		log.Error("Error loading .env file", slog.Any("error", errE))
 	}
 
 	service := &GenkitService{}

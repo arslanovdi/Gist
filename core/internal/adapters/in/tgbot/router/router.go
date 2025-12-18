@@ -1,3 +1,4 @@
+// Package router реализует меню телеграм бота
 package router
 
 import (
@@ -70,6 +71,7 @@ func (r *CallbackRouter) Handle(ctx *th.Context, query telego.CallbackQuery) err
 	return nil
 }
 
+// ShowMainMenu выводит главное меню в Telegram боте.
 func (r *CallbackRouter) ShowMainMenu(ctx *th.Context) error {
 	// Создаем фейковый callback с MenuMain
 	payload, err := CallbackPayload{Menu: MenuMain}.String()

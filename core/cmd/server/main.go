@@ -1,3 +1,4 @@
+// Package main запуск сервера
 package main
 
 import (

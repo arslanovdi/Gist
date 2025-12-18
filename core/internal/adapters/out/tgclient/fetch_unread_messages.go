@@ -13,7 +13,7 @@ import (
 
 // FetchUnreadMessages выгружает непрочитанные сообщения из телеграмм чата
 //
-//nolint:gocognit
+//nolint:gocognit,gocyclo // cognit-21, cyclo-15
 func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error) {
 	log := slog.With(slog.String("func", "tgclient.FetchUnreadMessages"), slog.Any("chatID", chat))
 	log.Debug("Get unread messages from chat")

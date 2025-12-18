@@ -16,14 +16,17 @@ type UnreadMenuHandler struct {
 	*BaseHandler
 }
 
+// NewUnreadMenuHandler конструктор обработчика вывода списка непрочитанных чатов
 func NewUnreadMenuHandler(base *BaseHandler) *UnreadMenuHandler {
 	return &UnreadMenuHandler{BaseHandler: base}
 }
 
+// CanHandle Реализация интерфейса CallbackHandler
 func (h *UnreadMenuHandler) CanHandle(payload *CallbackPayload) bool {
 	return payload.Menu == MenuUnread
 }
 
+// Handle Реализация интерфейса CallbackHandler
 func (h *UnreadMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.UnreadMenuHandler")
 	log.Debug("handling unread menu callback")

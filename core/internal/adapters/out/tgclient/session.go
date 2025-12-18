@@ -1,3 +1,4 @@
+// Package tgclient реализация телеграмм клиента
 package tgclient
 
 import (
@@ -13,6 +14,7 @@ import (
 
 const batchLimit = 100
 
+// Session структура телеграм клиента. В этой реализации подключение только одного пользователя!
 type Session struct {
 	userID int64  // Идентификатор пользователя Telegram
 	phone  string // Номер телефона, привязанный к аккаунту
@@ -23,6 +25,13 @@ type Session struct {
 	cancelFunc context.CancelFunc // Отмена контекста вызовет закрытие telegram.Client.
 }
 
+// NewSession создает и инициализирует новый экземпляр сессии Telegram клиента.
+// Принимает конфигурацию приложения, содержащую:
+//   - AppID и AppHash для аутентификации в Telegram API
+//   - UserID и Phone пользователя
+//
+// Возвращает готовый к использованию экземпляр Session.
+// Сессия сохраняется локально в файл "session.json".
 func NewSession(cfg *config.Config) *Session {
 	// Настройка клиента Telegram с сохранением сессии
 	client := telegram.NewClient(
@@ -43,6 +52,21 @@ func NewSession(cfg *config.Config) *Session {
 	}
 }
 
+// Run запускает клиент Telegram в отдельной горутине.
+// Управляет жизненным циклом клиента, включая аутентификацию и обработку ошибок.
+// Принимает:
+//   - ctx: контекст для управления временем жизни клиента
+//   - serverErr: канал для отправки критических ошибок в родительскую горутину
+//
+// Автоматически:
+//   - Проверяет аутентификацию
+//   - Запускает процесс аутентификации при необходимости
+//   - Устанавливает флаг готовности
+//   - Обрабатывает завершение работы
+//
+// При возникновении ошибки отправляет её в канал serverErr.
+//
+//nolint:gocognit //cognit-14
 func (s *Session) Run(ctx context.Context, serverErr chan error) {
 	log := slog.With("func", "tgclient.Run")
 	log.Debug("run telegram client")
@@ -93,6 +117,9 @@ func (s *Session) Run(ctx context.Context, serverErr chan error) {
 	})
 }
 
+// Close корректно завершает работу клиента Telegram.
+// Останавливает все запущенные горутины и освобождает ресурсы.
+// Принимает контекст для контроля времени ожидания завершения.
 func (s *Session) Close(ctx context.Context) {
 	log := slog.With("func", "tgclient.Stop")
 	log.Debug("Stopping Telegram client...")

@@ -1,3 +1,4 @@
+// Package config загрузка конфигурации приложения
 package config
 
 import (
@@ -12,6 +13,7 @@ import (
 
 const defaultConfigFilePath = "configs/values_local.yaml"
 
+// Config структура конфигурации приложения
 type Config struct {
 	Project struct {
 		Debug           bool          `yaml:"debug"`
@@ -19,9 +21,10 @@ type Config struct {
 	} `yaml:"project"`
 
 	Bot struct {
-		Token          string `yaml:"token"`                    // env BOT_TOKEN
-		NgrokAuthToken string `mapstructure:"ngrok_auth_token"` // env BOT_NGROK_AUTH_TOKEN
-		NgrokDomain    string `mapstructure:"ngrok_domain"`     // env BOT_NGROK_DOMAIN
+		Token             string        `yaml:"token"`                       // env BOT_TOKEN
+		NgrokAuthToken    string        `mapstructure:"ngrok_auth_token"`    // env BOT_NGROK_AUTH_TOKEN
+		NgrokDomain       string        `mapstructure:"ngrok_domain"`        // env BOT_NGROK_DOMAIN
+		ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"` // env BOT_READ_HEADER_TIMEOUT
 	} `yaml:"bot"`
 
 	Client struct {

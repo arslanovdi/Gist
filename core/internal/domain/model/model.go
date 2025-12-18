@@ -1,12 +1,9 @@
+// Package model содержит общие для разных слоев типы, ошибки.
 package model
 
 import "github.com/gotd/td/tg"
 
-type Credential struct {
-	Phone string
-	Code  string
-}
-
+// Chat структура телеграмм чата
 type Chat struct {
 	Title             string // From Chats.Title
 	ID                int64  // From Chats.ID

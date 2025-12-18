@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Message структура телеграмм сообщения
 type Message struct {
 	ID           int       `json:"id"`              // ID сообщения в Telegram
 	SenderID     int64     `json:"sender_id"`       // ID отправителя

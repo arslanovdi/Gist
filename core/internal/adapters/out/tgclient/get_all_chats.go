@@ -11,6 +11,8 @@ import (
 )
 
 // GetAllChats возвращает список всех чатов и диалогов пользователя из Telegram.
+//
+//nolint:gocyclo //cyclo-15
 func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 	log := slog.With("func", "tgclient.GetAllChats", slog.Int64("user_id", s.userID))
 	log.Debug("Get all chats")

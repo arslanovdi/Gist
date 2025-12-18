@@ -13,14 +13,17 @@ type ChatMenuHandler struct {
 	*BaseHandler
 }
 
+// NewChatMenuHandler конструктор обработчика вывода информации по выбранному чату.
 func NewChatMenuHandler(base *BaseHandler) *ChatMenuHandler {
 	return &ChatMenuHandler{BaseHandler: base}
 }
 
+// CanHandle Реализация интерфейса CallbackHandler
 func (h *ChatMenuHandler) CanHandle(payload *CallbackPayload) bool {
 	return payload.Menu == MenuChat
 }
 
+// Handle Реализация интерфейса CallbackHandler
 func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.ChatMenuHandler")
 	log.Debug("handling main menu callback")

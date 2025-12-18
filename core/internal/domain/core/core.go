@@ -1,3 +1,4 @@
+// Package core слой бизнес-логики
 package core
 
 import (
@@ -10,16 +11,18 @@ import (
 
 const ttl = time.Minute
 
+// TelegramClient контракт для работы с телеграмм клиентом
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
 	FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error)
 }
 
+// LLMClient контракт для работы с LLM
 type LLMClient interface {
 	GetChatGist(ctx context.Context, messages []model.Message) (string, error)
 }
 
-// Gist представляет основной сервис приложения, который инкапсулирует бизнес-логику.
+// Gist представляет ядро бизнес-логики приложения.
 type Gist struct {
 	tgClient  TelegramClient
 	llmClient LLMClient
@@ -34,6 +37,7 @@ type Gist struct {
 	requestTimeout time.Duration
 }
 
+// ChangeFavorites добавление чата в избранное
 func (g *Gist) ChangeFavorites(_ context.Context, chatID int64) error {
 	// TODO implement me, save to DB
 	chat, ok := g.cache[chatID]
@@ -45,6 +49,7 @@ func (g *Gist) ChangeFavorites(_ context.Context, chatID int64) error {
 	return nil
 }
 
+// GetChatDetail Получение информации о чате
 func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, error) {
 	chat, ok := g.cache[chatID]
 	if !ok {
@@ -53,6 +58,7 @@ func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, erro
 	return chat, nil
 }
 
+// NewGist конструктор
 func NewGist(tgClient TelegramClient, llmClient LLMClient, cfg *config.Config) *Gist {
 	return &Gist{
 		tgClient:        tgClient,

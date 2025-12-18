@@ -16,14 +16,17 @@ type FavoritesMenuHandler struct {
 	*BaseHandler
 }
 
+// NewFavoritesMenuHandler конструктор обработчика вывода списка избранных чатов.
 func NewFavoritesMenuHandler(base *BaseHandler) *FavoritesMenuHandler {
 	return &FavoritesMenuHandler{BaseHandler: base}
 }
 
+// CanHandle Реализация интерфейса CallbackHandler
 func (h *FavoritesMenuHandler) CanHandle(payload *CallbackPayload) bool {
 	return payload.Menu == MenuFavorites
 }
 
+// Handle Реализация интерфейса CallbackHandler
 func (h *FavoritesMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.FavoritesMenuHandler")
 	log.Debug("handling favorites menu callback")

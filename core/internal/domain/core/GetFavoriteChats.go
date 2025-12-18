@@ -8,6 +8,7 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 )
 
+// GetFavoriteChats возвращает список избранных чатов.
 func (g *Gist) GetFavoriteChats(ctx context.Context) ([]model.Chat, error) {
 	log := slog.With("func", "core.GetFavoriteChats")
 	log.Debug("get favorite chats")

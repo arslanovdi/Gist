@@ -1,3 +1,4 @@
+// Package tgbot реализует телеграм бот
 package tgbot
 
 import (
@@ -15,9 +16,11 @@ import (
 	"golang.ngrok.com/ngrok/v2"
 )
 
+// Bot основной тип для работы с Telegram ботом.
+// Инкапсулирует всю логику взаимодействия с Telegram API и управления состоянием бота.
 type Bot struct {
-	cfg           *config.Config
-	allowedUserID int64
+	cfg           *config.Config // конфигурация приложения
+	allowedUserID int64          // ID пользователя, которому разрешено взаимодействие с ботом
 
 	// LastMessageID int // id редактируемого сообщения. В боте всегда одно сообщение, которое мы редактируем.
 
@@ -37,6 +40,20 @@ type Bot struct {
 	router *router.CallbackRouter // Роутер меню телеграм бота
 }
 
+// New создает и инициализирует новый экземпляр Telegram бота.
+// Принимает:
+//   - cfg: конфигурация приложения
+//   - coreService: сервис ядра приложения для обработки бизнес-логики
+//
+// Возвращает:
+//   - *Bot: инициализированный экземпляр бота
+//   - error: ошибка в случае проблем при инициализации
+//
+// Выполняет:
+//   - Создание бота с указанным токеном
+//   - Инициализацию ngrok-агента для туннелирования
+//   - Создание HTTP-сервера для вебхуков
+//   - Настройку роутера колбэков
 func New(cfg *config.Config, coreService router.CoreService) (*Bot, error) {
 	log := slog.With("func", "bot.New")
 	log.Info("Initializing bot")
@@ -57,7 +74,9 @@ func New(cfg *config.Config, coreService router.CoreService) (*Bot, error) {
 
 	// Создаем сервер, для обработки запросов вебхука Telegram
 
-	srv := &http.Server{}
+	srv := &http.Server{
+		ReadHeaderTimeout: cfg.Bot.ReadHeaderTimeout,
+	}
 
 	return &Bot{
 		bot:           bot,
@@ -72,6 +91,17 @@ func New(cfg *config.Config, coreService router.CoreService) (*Bot, error) {
 }
 
 // Run запускает Telegram-бота, начиная обработку вебхуков и обновлений.
+// Инициализирует и запускает все необходимые компоненты для работы бота:
+//   - Создает ngrok-туннель для доступа к вебхукам
+//   - Запускает HTTP-сервер для приема обновлений
+//   - Регистрирует вебхук в Telegram API
+//   - Инициализирует обработчики команд и колбэков
+//
+// Принимает:
+//   - ctx: контекст для управления временем жизни
+//   - serverErr: канал для отправки критических ошибок
+//
+// В случае ошибки отправляет её в канал serverErr и завершает работу.
 func (b *Bot) Run(ctx context.Context, serverErr chan error) {
 	log := slog.With("func", "bot.Run")
 
@@ -121,6 +151,17 @@ func (b *Bot) Run(ctx context.Context, serverErr chan error) {
 	log.Info("bot started")
 }
 
+// Close корректно завершает работу Telegram бота, освобождая все ресурсы.
+// Принимает контекст для управления дедлайном завершения операций.
+// Последовательно:
+//   - Удаляет вебхук
+//   - Останавливает обработку обновлений
+//   - Выключает HTTP-сервер
+//   - Закрывает ngrok-туннель
+//   - Ожидает завершения всех горутин
+//
+// Логирует ошибки на каждом этапе, но не прерывает выполнение.
+// Гарантирует освобождение ресурсов даже при частичных ошибках.
 func (b *Bot) Close(ctx context.Context) {
 	log := slog.With("func", "bot.Close")
 	log.Info("Stopping...")

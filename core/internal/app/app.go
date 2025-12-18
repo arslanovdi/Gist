@@ -1,3 +1,4 @@
+// Package app инициализация и запуск всех зависимостей, graceful shutdown
 package app
 
 import (
@@ -17,6 +18,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const envFileName = ".env"
+
+// App структура со всеми зависимостями приложения
 type App struct {
 	Cfg            *config.Config    // Конфигурация
 	TelegramBot    *tgbot.Bot        // Телеграм бот
@@ -25,10 +29,17 @@ type App struct {
 	LLM            *llm.GenkitService
 }
 
+// New создает и инициализирует экземпляр приложения.
+// Выполняет настройку всех компонентов в правильном порядке:
+//  1. Загружает конфигурацию из .env файла (если доступен)
+//  2. Инициализирует Telegram клиент
+//  3. Настраивает LLM-сервис
+//  4. Создает сервис ядра (бизнес-логика)
+//  5. Инициализирует Telegram бота
 func New(ctx context.Context) (*App, error) {
 	log := slog.With("func", "app.New")
 
-	errE := godotenv.Load(".env")
+	errE := godotenv.Load(envFileName)
 	if errE != nil {
 		log.Error("Error loading .env file", slog.Any("error", errE)) // Это корректное поведение, в k8s этого файла может не быть, а параметры передаются через ENV.
 	}
@@ -65,6 +76,7 @@ func New(ctx context.Context) (*App, error) {
 	}, nil
 }
 
+// Run запускает приложение и управляет его жизненным циклом.
 func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 
 	log := slog.With("func", "app.Run")
@@ -107,6 +119,7 @@ func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 	return nil
 }
 
+// Close операции по остановке работы с зависимостями.
 func (a *App) Close(ctx context.Context) {
 
 	log := slog.With("func", "app.Close")
