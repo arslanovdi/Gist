@@ -10,19 +10,22 @@ import (
 	tu "github.com/mymmrac/telego/telegoutil"
 )
 
-// Вывод главного меню
+// MainMenuHandler Вывод главного меню
 type MainMenuHandler struct {
 	*BaseHandler
 }
 
+// NewMainMenuHandler конструктор обработчика вывода главного меню.
 func NewMainMenuHandler(base *BaseHandler) *MainMenuHandler {
 	return &MainMenuHandler{BaseHandler: base}
 }
 
+// CanHandle Реализация интерфейса CallbackHandler
 func (h *MainMenuHandler) CanHandle(payload *CallbackPayload) bool {
 	return payload.Menu == MenuMain
 }
 
+// Handle Реализация интерфейса CallbackHandler
 func (h *MainMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, _ *CallbackPayload) error {
 	log := slog.With("func", "router.MainMenuHandler")
 	log.Debug("handling main menu callback")

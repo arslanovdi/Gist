@@ -1,3 +1,4 @@
+// Package main запуск сервера
 package main
 
 import (
@@ -31,7 +32,7 @@ func main() {
 	logger.InitializeLogger(slog.LevelDebug, serviceName)
 	log := slog.With("func", "main")
 
-	application, errA := app.New()
+	application, errA := app.New(ctxStart)
 	if errA != nil {
 		log.Error("Failed to initialize application", slog.Any("error", errA))
 		os.Exit(1)

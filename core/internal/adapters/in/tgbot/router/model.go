@@ -6,20 +6,25 @@ import (
 	"log/slog"
 )
 
-const MaxDataSize = 64 // 64 байта callback payload это ограничение Telegram
+const maxDataSize = 64 // 64 байта callback payload это ограничение Telegram
 
+// Menu тип меню в Telegram боте.
+// Используется для навигации между разделами интерфейса.
 type Menu int8
 
+// Список вариантов меню
 const (
-	MenuMain Menu = iota + 1
-	MenuUnread
-	MenuFavorites
-	MenuSettings
-	MenuChat
+	MenuMain      Menu = iota + 1 // Главное меню
+	MenuUnread                    // Список чатов с непрочитанными сообщениями
+	MenuFavorites                 // Список избранных чатов
+	MenuSettings                  // Меню настроек
+	MenuChat                      // Меню выбранного чата
 )
 
+// Action тип действия, которое может быть выполнено с чатом Telegram.
 type Action int8
 
+// Список вариантов действий
 const (
 	ActionMarkRead  Action = iota + 1 // ✅ Пометить прочитанным
 	ActionTTS                         // 🔊 Озвучить"
@@ -42,7 +47,7 @@ func (cp CallbackPayload) String() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(data) > MaxDataSize {
+	if len(data) > maxDataSize {
 		return "", fmt.Errorf("callback_data too long: %d bytes", len(data))
 	}
 	return string(data), nil

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	ChatsPerPage = 8
+	chatsPerPage = 8 // Количество чатов выводимых пользователю за раз (пагинация)
 )
 
 // BaseHandler содержит общие зависимости и методы для всех обработчиков
@@ -110,8 +110,8 @@ func (b *BaseHandler) buildChatsMenu(chats []model.Chat, page int, menu Menu) *t
 	var rows [][]telego.InlineKeyboardButton
 
 	// Пагинация
-	start := page * ChatsPerPage
-	end := start + ChatsPerPage
+	start := page * chatsPerPage
+	end := start + chatsPerPage
 	if end > len(chats) {
 		end = len(chats)
 	}

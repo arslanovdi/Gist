@@ -1,3 +1,4 @@
+// Package logger содержит методы для работы с логгированием.
 package logger
 
 import (

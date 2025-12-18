@@ -1,3 +1,4 @@
+// Package config загрузка конфигурации приложения
 package config
 
 import (
@@ -12,6 +13,7 @@ import (
 
 const defaultConfigFilePath = "configs/values_local.yaml"
 
+// Config структура конфигурации приложения
 type Config struct {
 	Project struct {
 		Debug           bool          `yaml:"debug"`
@@ -19,9 +21,10 @@ type Config struct {
 	} `yaml:"project"`
 
 	Bot struct {
-		Token          string `yaml:"token"`                    // env BOT_TOKEN
-		NgrokAuthToken string `mapstructure:"ngrok_auth_token"` // env BOT_NGROK_AUTH_TOKEN
-		NgrokDomain    string `mapstructure:"ngrok_domain"`     // env BOT_NGROK_DOMAIN
+		Token             string        `yaml:"token"`                       // env BOT_TOKEN
+		NgrokAuthToken    string        `mapstructure:"ngrok_auth_token"`    // env BOT_NGROK_AUTH_TOKEN
+		NgrokDomain       string        `mapstructure:"ngrok_domain"`        // env BOT_NGROK_DOMAIN
+		ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"` // env BOT_READ_HEADER_TIMEOUT
 	} `yaml:"bot"`
 
 	Client struct {
@@ -36,6 +39,30 @@ type Config struct {
 	Settings struct {
 		ChatUnreadThreshold int `mapstructure:"chat_unread_threshold"`
 	} `yaml:"settings"`
+
+	LLM struct {
+		Development bool `yaml:"development"`
+
+		ClientType string `mapstructure:"client_type"` // switch of Ollama, OpenRouter, Gemini, OpenAI.
+
+		Ollama struct {
+			ServerAddress string `mapstructure:"server_address"`
+			Timeout       int    `yaml:"timeout"`
+			Model         string `yaml:"model"`
+		} `yaml:"Ollama"`
+
+		OpenRouter struct {
+			Model string `yaml:"model"`
+		} `yaml:"OpenRouter"`
+
+		Gemini struct {
+			Model string `yaml:"model"`
+		} `yaml:"Gemini"`
+
+		OpenAI struct {
+			Model string `yaml:"model"`
+		} `yaml:"OpenAI"`
+	} `yaml:"llm"`
 }
 
 // LoadConfig загружает конфигурацию приложения из YAML-файла.

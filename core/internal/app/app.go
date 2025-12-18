@@ -1,3 +1,4 @@
+// Package app инициализация и запуск всех зависимостей, graceful shutdown
 package app
 
 import (
@@ -9,24 +10,36 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/arslanovdi/Gist/core/internal/adapters/in/tgbot"
+	"github.com/arslanovdi/Gist/core/internal/adapters/out/llm"
+	"github.com/arslanovdi/Gist/core/internal/adapters/out/tgclient"
 	"github.com/arslanovdi/Gist/core/internal/domain/core"
-	"github.com/arslanovdi/Gist/core/internal/domain/tgbot"
-	"github.com/arslanovdi/Gist/core/internal/domain/tgclient"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/joho/godotenv"
 )
 
+const envFileName = ".env"
+
+// App структура со всеми зависимостями приложения
 type App struct {
 	Cfg            *config.Config    // Конфигурация
 	TelegramBot    *tgbot.Bot        // Телеграм бот
 	TelegramClient *tgclient.Session // Телеграм клиент
 	CoreService    *core.Gist        // Слой бизнес логики
+	LLM            *llm.GenkitService
 }
 
-func New() (*App, error) {
+// New создает и инициализирует экземпляр приложения.
+// Выполняет настройку всех компонентов в правильном порядке:
+//  1. Загружает конфигурацию из .env файла (если доступен)
+//  2. Инициализирует Telegram клиент
+//  3. Настраивает LLM-сервис
+//  4. Создает сервис ядра (бизнес-логика)
+//  5. Инициализирует Telegram бота
+func New(ctx context.Context) (*App, error) {
 	log := slog.With("func", "app.New")
 
-	errE := godotenv.Load(".env")
+	errE := godotenv.Load(envFileName)
 	if errE != nil {
 		log.Error("Error loading .env file", slog.Any("error", errE)) // Это корректное поведение, в k8s этого файла может не быть, а параметры передаются через ENV.
 	}
@@ -40,7 +53,12 @@ func New() (*App, error) {
 
 	telegramClient := tgclient.NewSession(cfg)
 
-	coreService := core.NewGist(telegramClient, cfg)
+	llmClient, errL := llm.NewGenkitService(ctx, cfg)
+	if errL != nil {
+		return nil, fmt.Errorf("[app.new] llm initialization failed: %w", errL)
+	}
+
+	coreService := core.NewGist(telegramClient, llmClient, cfg)
 
 	bot, errB := tgbot.New(cfg, coreService)
 	if errB != nil {
@@ -54,9 +72,11 @@ func New() (*App, error) {
 		TelegramBot:    bot,
 		TelegramClient: telegramClient,
 		CoreService:    coreService,
+		LLM:            llmClient,
 	}, nil
 }
 
+// Run запускает приложение и управляет его жизненным циклом.
 func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 
 	log := slog.With("func", "app.Run")
@@ -99,6 +119,7 @@ func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 	return nil
 }
 
+// Close операции по остановке работы с зависимостями.
 func (a *App) Close(ctx context.Context) {
 
 	log := slog.With("func", "app.Close")

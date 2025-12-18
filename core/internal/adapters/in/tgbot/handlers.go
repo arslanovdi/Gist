@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/arslanovdi/Gist/core/internal/domain/tgbot/router"
+	"github.com/arslanovdi/Gist/core/internal/adapters/in/tgbot/router"
 	th "github.com/mymmrac/telego/telegohandler"
 )
 

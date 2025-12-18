@@ -8,18 +8,22 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 )
 
+// AddToFavoritesHandler обработчик добавления чата в избранное
 type AddToFavoritesHandler struct {
 	*BaseHandler
 }
 
+// NewAddToFavoritesHandler конструктор обработчика добавления чата в избранное.
 func NewAddToFavoritesHandler(base *BaseHandler) *AddToFavoritesHandler {
 	return &AddToFavoritesHandler{BaseHandler: base}
 }
 
+// CanHandle Реализация интерфейса CallbackHandler
 func (h *AddToFavoritesHandler) CanHandle(payload *CallbackPayload) bool {
 	return payload.Action == ActionToggleFav
 }
 
+// Handle Реализация интерфейса CallbackHandler
 func (h *AddToFavoritesHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.AddToFavoritesHandler")
 	log.Debug("handling add to favorites callback")

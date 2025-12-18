@@ -19,7 +19,7 @@ func (s *Session) Authenticate(ctx context.Context) error {
 	log := slog.With("func", "tgclient.authenticate", slog.Any("user_id", s.userID))
 
 	// Функция для запроса кода подтверждения в консоли
-	codePrompt := func(ctx context.Context, sentCode *tg.AuthSentCode) (string, error) {
+	codePrompt := func(_ context.Context, _ *tg.AuthSentCode) (string, error) {
 		fmt.Print("Enter code: ")
 		code, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
