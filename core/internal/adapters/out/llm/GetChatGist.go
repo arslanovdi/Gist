@@ -16,7 +16,7 @@ const flowTimeout = time.Second * 30
 func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Message) (string, error) {
 
 	log := slog.With("func", "llm.GetChatGist")
-	log.Debug("get chat gist start", slog.Any("messages", messages))
+	log.Debug("get chat gist start", slog.Int("message count", len(messages)))
 
 	ctxFlow, cancel := context.WithTimeout(ctx, flowTimeout)
 	defer cancel()
