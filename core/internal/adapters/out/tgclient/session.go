@@ -7,9 +7,13 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
+	"github.com/gotd/contrib/middleware/floodwait"
+	"github.com/gotd/contrib/middleware/ratelimit"
 	"github.com/gotd/td/telegram"
+	"golang.org/x/time/rate"
 )
 
 const batchLimit = 100
@@ -23,6 +27,7 @@ type Session struct {
 	wg         *sync.WaitGroup
 	ready      atomic.Bool        // True - клиент готов к работе
 	cancelFunc context.CancelFunc // Отмена контекста вызовет закрытие telegram.Client.
+	waiter     *floodwait.Waiter
 }
 
 // NewSession создает и инициализирует новый экземпляр сессии Telegram клиента.
@@ -33,6 +38,12 @@ type Session struct {
 // Возвращает готовый к использованию экземпляр Session.
 // Сессия сохраняется локально в файл "session.json".
 func NewSession(cfg *config.Config) *Session {
+
+	// обработчик ошибки FlOOD_WAIT
+	waiter := floodwait.NewWaiter().WithCallback(func(ctx context.Context, wait floodwait.FloodWait) {
+		slog.Error("Got FLOOD_WAIT", slog.Any("sleep", wait.Duration))
+	})
+
 	// Настройка клиента Telegram с сохранением сессии
 	client := telegram.NewClient(
 		cfg.Client.AppID,
@@ -40,6 +51,10 @@ func NewSession(cfg *config.Config) *Session {
 		telegram.Options{
 			SessionStorage: &telegram.FileSessionStorage{ // TODO Реализовать сохранение во внешнее хранилище сессий
 				Path: "session.json",
+			},
+			Middlewares: []telegram.Middleware{
+				waiter, // обработчик FLOOD_WAIT
+				ratelimit.New(rate.Every(100*time.Millisecond), 5), // Общий rate limit, чтобы реже ловить FLOOD_WAIT. Субъективно, не особо помогает.
 			},
 		},
 	)
@@ -49,6 +64,7 @@ func NewSession(cfg *config.Config) *Session {
 		phone:  cfg.Client.Phone,
 		client: client,
 		wg:     &sync.WaitGroup{},
+		waiter: waiter,
 	}
 }
 
@@ -85,30 +101,32 @@ func (s *Session) Run(ctx context.Context, serverErr chan error) {
 
 		// Запуск клиента
 		if err := s.client.Run(ctxClient, func(ctx context.Context) error {
-			// Проверяем, авторизованы ли мы уже
-			authStatus, err := s.client.Auth().Status(ctx)
-			if err != nil {
-				return fmt.Errorf("get auth status failed: %w", err)
-			}
-
-			// Если не авторизованы, выполняем полный процесс авторизации
-			if !authStatus.Authorized {
-				log.Debug("Not authenticated, starting authentication flow...", slog.Int64("user_id", s.userID))
-				if errA := s.Authenticate(ctx); errA != nil {
-					return errA
+			return s.waiter.Run(ctx, func(ctx context.Context) error { // Оборачиваем клиентский код в waiter
+				// Проверяем, авторизованы ли мы уже
+				authStatus, err := s.client.Auth().Status(ctx)
+				if err != nil {
+					return fmt.Errorf("get auth status failed: %w", err)
 				}
-			} else {
-				log.Debug("Already authenticated, using existing session...", slog.Int64("user_id", s.userID))
-			}
 
-			// Сигнализируем, что клиент готов
-			s.ready.Store(true)
-			log.Debug("Telegram client is ready")
+				// Если не авторизованы, выполняем полный процесс авторизации
+				if !authStatus.Authorized {
+					log.Debug("Not authenticated, starting authentication flow...", slog.Int64("user_id", s.userID))
+					if errA := s.Authenticate(ctx); errA != nil {
+						return errA
+					}
+				} else {
+					log.Debug("Already authenticated, using existing session...", slog.Int64("user_id", s.userID))
+				}
 
-			// Ждем отмены контекста
-			<-ctx.Done()
-			s.ready.Store(false)
-			return nil
+				// Сигнализируем, что клиент готов
+				s.ready.Store(true)
+				log.Debug("Telegram client is ready")
+
+				// Ждем отмены контекста
+				<-ctx.Done()
+				s.ready.Store(false)
+				return nil
+			})
 		}); err != nil {
 			log.Error("Telegram client stopped with error", slog.Any("error", err))
 			s.ready.Store(false)
