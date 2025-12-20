@@ -41,26 +41,30 @@ type Config struct {
 	} `yaml:"settings"`
 
 	LLM struct {
-		Development bool `yaml:"development"`
-
-		ClientType string `mapstructure:"client_type"` // switch of Ollama, OpenRouter, Gemini, OpenAI.
+		Development bool          `yaml:"development"`
+		FlowTimeout time.Duration `mapstructure:"flow_timeout"` // таймаут выполнения сценария LLM
+		ClientType  string        `mapstructure:"client_type"`  // switch of Ollama, OpenRouter, Gemini, OpenAI.
 
 		Ollama struct {
 			ServerAddress string `mapstructure:"server_address"`
 			Timeout       int    `yaml:"timeout"`
 			Model         string `yaml:"model"`
+			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"Ollama"`
 
 		OpenRouter struct {
-			Model string `yaml:"model"`
+			Model         string `yaml:"model"`
+			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"OpenRouter"`
 
 		Gemini struct {
-			Model string `yaml:"model"`
+			Model         string `yaml:"model"`
+			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"Gemini"`
 
 		OpenAI struct {
-			Model string `yaml:"model"`
+			Model         string `yaml:"model"`
+			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"OpenAI"`
 	} `yaml:"llm"`
 }

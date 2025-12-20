@@ -41,7 +41,7 @@ func NewSession(cfg *config.Config) *Session {
 
 	// обработчик ошибки FlOOD_WAIT
 	waiter := floodwait.NewWaiter().WithCallback(func(ctx context.Context, wait floodwait.FloodWait) {
-		slog.Error("Got FLOOD_WAIT", slog.Any("sleep", wait.Duration))
+		slog.Error("Got FLOOD_WAIT", slog.Any("sleep", wait.Duration.String()))
 	})
 
 	// Настройка клиента Telegram с сохранением сессии

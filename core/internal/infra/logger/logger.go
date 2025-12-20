@@ -31,6 +31,13 @@ func (h *contextHandler) WithGroup(name string) slog.Handler {
 // Handle adds trace_id, span_id attributes to log from context
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 
+	if r.Level == slog.LevelDebug {
+		switch r.Message {
+		case "Action.Run":
+			return nil // Отключаем логирование genkit message Action.Run, он туда пишет все контекстное окно и забивает логи сообщениями по 500_000 символов...
+		}
+	}
+
 	span := trace.SpanFromContext(ctx)
 
 	sCtx := span.SpanContext()

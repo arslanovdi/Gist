@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
@@ -39,6 +40,9 @@ type GenkitService struct {
 	g      *genkit.Genkit
 	config any // Настройки модели, задаются при инициализации фреймворка
 
+	contextWindow int           // context window
+	flowTimeout   time.Duration // таймаут выполнения сценария LLM
+
 	getChatGistFlow *core.Flow[*chat, string, struct{}] // Сценарий (поток) выполнения запросов к LLM
 }
 
@@ -50,6 +54,8 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 	if apiKey == "" {
 		return fmt.Errorf("OPENROUTER_API_KEY environment variable not set")
 	}
+
+	s.contextWindow = cfg.LLM.OpenRouter.ContextWindow
 
 	openRouterPlugin := &oaic.OpenAICompatible{
 		Provider: "openrouter",
@@ -161,6 +167,7 @@ func NewGenkitService(ctx context.Context, cfg *config.Config) (*GenkitService, 
 	}
 
 	service := &GenkitService{}
+	service.flowTimeout = cfg.LLM.FlowTimeout
 
 	switch cfg.LLM.ClientType {
 
