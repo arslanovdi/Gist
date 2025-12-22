@@ -39,5 +39,5 @@ func (h *AddToFavoritesHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, 
 		log.Error("GetChatDetail", slog.Any("error", errD))
 	}
 
-	return h.showChatDetail(ctx, *chatDetail, payload.Src)
+	return h.showChatDetail(ctx, *chatDetail, payload.Src, payload.Page)
 }

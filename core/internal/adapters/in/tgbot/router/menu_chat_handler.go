@@ -27,10 +27,16 @@ func (h *ChatMenuHandler) CanHandle(payload *CallbackPayload) bool {
 func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.ChatMenuHandler")
 	log.Debug("handling main menu callback")
+	gistPage := 0
 
-	_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID) // Метод сохраняет суть в структуру Detail
-	if errG != nil {
-		log.Error("GetChatGist", slog.Any("error", errG))
+	if payload.Page == 0 { // Если страница не передана, значит краткого пересказа чата еще нет
+		_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID) // Получаем краткий пересказ, сохраняем его в кэш.
+		if errG != nil {
+			log.Error("GetChatGist", slog.Any("error", errG))
+		}
+		gistPage = 1
+	} else {
+		gistPage = payload.Page
 	}
 
 	chatDetail, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)
@@ -39,5 +45,5 @@ func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payloa
 		log.Error("GetChatDetail", slog.Any("error", errD))
 	}
 
-	return h.showChatDetail(ctx, *chatDetail, payload.Src)
+	return h.showChatDetail(ctx, *chatDetail, payload.Src, gistPage)
 }

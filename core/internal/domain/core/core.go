@@ -19,7 +19,7 @@ type TelegramClient interface {
 
 // LLMClient контракт для работы с LLM
 type LLMClient interface {
-	GetChatGist(ctx context.Context, messages []model.Message) (string, error)
+	GetChatGist(ctx context.Context, messages []model.Message) ([]string, error)
 }
 
 // Gist представляет ядро бизнес-логики приложения.
@@ -49,7 +49,7 @@ func (g *Gist) ChangeFavorites(_ context.Context, chatID int64) error {
 	return nil
 }
 
-// GetChatDetail Получение информации о чате
+// GetChatDetail Получение информации о чате из кэша
 func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, error) {
 	chat, ok := g.cache[chatID]
 	if !ok {

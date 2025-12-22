@@ -21,7 +21,7 @@ settings:
 
 llm:
   development: true
-  flow_timeout: 180s
+  flow_timeout: 10m
   client_type: "OpenRouter" #  Ollama, OpenRouter, Gemini, OpenAI
   Ollama:
     server_address: "http://host.docker.internal:11434"

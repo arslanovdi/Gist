@@ -23,12 +23,12 @@ type BaseHandler struct {
 	UserID        int64 // id пользователя = id чата с ним, используется для вывода сообщений ботом.
 }
 
-func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu Menu) error {
+func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu Menu, gistPage int) error {
 	log := slog.With("func", "router.showChatDetail")
 
-	inlineKeyboard := b.buildChatDetailMenu(chat.ID, menu, chat.IsFavorite)
+	inlineKeyboard := b.buildChatDetailMenu(chat.ID, menu, chat.IsFavorite, gistPage, len(chat.Gist))
 
-	text := fmt.Sprintf("📩 %s\n🔍 Краткий пересказ: %s\n📌 Непрочитано: %d сообщения ", chat.Title, chat.Gist, chat.UnreadCount)
+	text := fmt.Sprintf("📩 %s\n🔍 Краткий пересказ: %s\n📌 Непрочитано: %d сообщения ", chat.Title, chat.Gist[gistPage-1], chat.UnreadCount)
 
 	if b.LastMessageID != 0 {
 		// Пытаемся отредактировать
@@ -63,16 +63,56 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu 
 }
 
 // Детали чата
-func (b *BaseHandler) buildChatDetailMenu(chatID int64, menu Menu, isFavorite bool) *telego.InlineKeyboardMarkup {
+// gistPage, gistPageCount нумерация с 1.
+func (b *BaseHandler) buildChatDetailMenu(chatID int64, menu Menu, isFavorite bool, gistPage int, gistPageCount int) *telego.InlineKeyboardMarkup {
 	var rows [][]telego.InlineKeyboardButton
 
-	// Действия
-	markReadCb := mustCallback(CallbackPayload{Action: ActionMarkRead, ChatID: chatID})
+	// Кнопки Назад, Далее для перелистывания страниц с кратким пересказом.
+	// Кнопка Назад, активна когда gistPage > 1.
+	// Кнопка Вперед активна когда gistPage < gistPageCount.
+	if gistPageCount > 1 {
+		backwardGistCb := mustCallback(CallbackPayload{
+			ChatID: chatID,
+			Menu:   MenuChat, // По этому параметру будет выбран обработчик кнопки.
+			Src:    menu,     // Меню, из которого вызвано описание чата. Нужна для корректной отработки кнопки "Назад к чатам"
+			Page:   gistPage - 1})
+
+		forwardGistCb := mustCallback(CallbackPayload{
+			ChatID: chatID,
+			Menu:   MenuChat,
+			Src:    menu,
+			Page:   gistPage + 1})
+
+		switch gistPage {
+		case 1: // Есть только кнопка Вперед.
+			rows = append(rows, tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("→ Вперед").WithCallbackData(forwardGistCb),
+			))
+		case gistPageCount: // Есть только кнопка Назад
+			rows = append(rows, tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("← Назад").WithCallbackData(backwardGistCb),
+			))
+		default: // Есть обе кнопки
+			rows = append(rows, tu.InlineKeyboardRow(
+				tu.InlineKeyboardButton("← Назад").WithCallbackData(backwardGistCb),
+				tu.InlineKeyboardButton("→ Вперед").WithCallbackData(forwardGistCb),
+			))
+		}
+	}
+
+	// Кнопка Пометить прочитанным
+	markReadCb := mustCallback(CallbackPayload{
+		Action: ActionMarkRead,
+		ChatID: chatID,
+		Page:   gistPage})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("✅ Пометить прочитанным").WithCallbackData(markReadCb),
 	))
 
-	ttsCb := mustCallback(CallbackPayload{Action: ActionTTS, ChatID: chatID})
+	// TODO Кнопка Озвучить
+	ttsCb := mustCallback(CallbackPayload{
+		Action: ActionTTS,
+		ChatID: chatID})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("🔊 Озвучить").WithCallbackData(ttsCb),
 	))
@@ -89,6 +129,7 @@ func (b *BaseHandler) buildChatDetailMenu(chatID int64, menu Menu, isFavorite bo
 		Src:    menu,
 		ChatID: chatID,
 		Add:    &add,
+		Page:   gistPage,
 	})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton(favLabel).WithCallbackData(toggleFavCb),
