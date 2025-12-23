@@ -39,7 +39,7 @@ func (g *Gist) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 		g.cache[chats[i].ID] = &chats[i]
 	}
 
-	log.Debug("Successfully get all chats", slog.Any("chats", chats))
+	log.Debug("Successfully get all chats", slog.Any("chats count", len(chats)))
 
 	return chats, nil
 }

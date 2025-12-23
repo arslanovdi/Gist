@@ -19,6 +19,7 @@ type CoreService interface {
 	GetChatGist(ctx context.Context, chatID int64) ([]string, error)      // Возвращает короткий пересказ непрочитанных сообщений чата.
 	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error) // Получение информации о чате из кэша
 	ChangeFavorites(ctx context.Context, chatID int64) error              // Добавление чата в избранное
+	MarkAsRead(ctx context.Context, chat *model.Chat, MaxID int) error    // Отметка чата как прочитанного
 }
 
 // CallbackHandler определяет интерфейс для обработчиков колбэков от инлайн кнопок

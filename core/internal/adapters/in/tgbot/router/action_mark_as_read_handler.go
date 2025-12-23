@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/mymmrac/telego"
@@ -23,10 +24,19 @@ func (h *MarkAsReadHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *MarkAsReadHandler) Handle(_ *th.Context, _ telego.CallbackQuery, _ *CallbackPayload) error {
+func (h *MarkAsReadHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.MarkAsReadHandler")
 	log.Debug("handling mark as read callback")
 
-	// TODO implement me
+	chat, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)
+	if errD != nil {
+		return fmt.Errorf("NewMarkAsReadHandler.GetChatDetail: %w", errD)
+	}
+
+	errM := h.CoreService.MarkAsRead(ctx, chat, 0) // 0 отметить все сообщения
+	if errM != nil {
+		return fmt.Errorf("NewMarkAsReadHandler: %w", errM)
+	}
+
 	return nil
 }

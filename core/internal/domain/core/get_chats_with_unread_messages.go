@@ -31,7 +31,7 @@ func (g *Gist) GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, er
 	unreadChats := make([]model.Chat, i)
 	copy(unreadChats, chats[:i])
 
-	log.Debug("Successfully get chats with unread messages", slog.Any("unreadChats", unreadChats))
+	log.Debug("Successfully get chats with unread messages", slog.Any("unread chats count", len(unreadChats)))
 
 	return unreadChats, nil
 

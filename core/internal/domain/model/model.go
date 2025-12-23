@@ -1,7 +1,9 @@
 // Package model содержит общие для разных слоев типы, ошибки.
 package model
 
-import "github.com/gotd/td/tg"
+import (
+	"github.com/gotd/td/tg"
+)
 
 // Chat структура телеграмм чата
 type Chat struct {
