@@ -18,7 +18,7 @@ func (g *Gist) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 		return g.chats, nil
 	}
 
-	ctxClient, cancelClient := context.WithTimeout(ctx, g.requestTimeout) // Контекст ограничивающий время выполнения запроса (включая закрытие горутин аутентификации в боте и клиенте по таймауту)
+	ctxClient, cancelClient := context.WithTimeout(ctx, g.requestTimeout) // Контекст ограничивающий время выполнения запроса (включая закрытие горутин аутентификации в боте и клиенте по тайм-ауту)
 	defer cancelClient()
 
 	chats, errG := g.tgClient.GetAllChats(ctxClient)

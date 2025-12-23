@@ -19,8 +19,8 @@ type BaseHandler struct {
 	Bot         *telego.Bot
 	CoreService CoreService
 
-	LastMessageID int   // id редактируемого сообщения. В боте всегда одно сообщение, которое мы редактируем.
-	UserID        int64 // id пользователя = id чата с ним, используется для вывода сообщений ботом.
+	LastMessageID int   // Id редактируемого сообщения. В боте всегда одно сообщение, которое мы редактируем.
+	UserID        int64 // Id пользователя = id чата с ним, используется для вывода сообщений ботом.
 }
 
 func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu Menu, gistPage int) error {

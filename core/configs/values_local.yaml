@@ -21,7 +21,9 @@ settings:
 
 llm:
   development: true
-  flow_timeout: 10m
+  flow_timeout: 30m # тайм-аут выполнения сценария LLM
+  drift_percent: 20 # процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
+  symbol_per_token: 2 # 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
   client_type: "OpenRouter" #  Ollama, OpenRouter, Gemini, OpenAI
   Ollama:
     server_address: "http://host.docker.internal:11434"

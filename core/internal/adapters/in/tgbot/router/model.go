@@ -34,8 +34,8 @@ const (
 // CallbackPayload — данные, сериализуемые в callback_data
 type CallbackPayload struct {
 	Menu   Menu   `json:"m,omitempty"`   // MenuMain, MenuUnread, MenuFavorites, MenuChat, MenuSettings	 	int8
-	Page   int    `json:"p,omitempty"`   // номер страницы, при выводе списка чатов.						int
-	ChatID int64  `json:"c,omitempty"`   // ID чата	требуется при выводе инлан-кнопок со списком чатов		int64
+	Page   int    `json:"p,omitempty"`   // Номер страницы, при выводе списка чатов.
+	ChatID int64  `json:"c,omitempty"`   // ID чата	требуется при выводе инлайн-кнопок со списком чатов
 	Src    Menu   `json:"s,omitempty"`   // MenuUnread или MenuFavorites. тип списка чатов					int8
 	Action Action `json:"a,omitempty"`   // ActionMarkRead, ActionTTS, ActionToggleFav, и т.д.				int8
 	Add    *bool  `json:"add,omitempty"` // для ActionToggleFav												bool
