@@ -51,6 +51,11 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]m
 			break
 		}
 
+		// Пропускаем пустые сообщения (без текста).
+		if tgMsg.Message == "" {
+			continue
+		}
+
 		message := model.Message{
 			ID:           tgMsg.ID,
 			Text:         tgMsg.Message,

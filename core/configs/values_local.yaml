@@ -21,14 +21,21 @@ settings:
 
 llm:
   development: true
+  flow_timeout: 30m # тайм-аут выполнения сценария LLM
+  drift_percent: 20 # процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
+  symbol_per_token: 2 # 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
   client_type: "OpenRouter" #  Ollama, OpenRouter, Gemini, OpenAI
   Ollama:
     server_address: "http://host.docker.internal:11434"
     timeout: 60     #seconds
     model: "glm-4.6:cloud"
+    context_window: 200_000  # контекстное окно LLM
   OpenRouter:
     model: "xiaomi/mimo-v2-flash:free" #"tngtech/deepseek-r1t2-chimera:free"
+    context_window: 262_144  # контекстное окно LLM
   Gemini:
     model: "gemini-2.5-flash"
+    context_window: 1_000_000  # контекстное окно LLM
   OpenAI:
     model: "gpt-4o"
+    context_window: 128_000  # контекстное окно LLM

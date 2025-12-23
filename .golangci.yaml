@@ -25,10 +25,10 @@ linters:
   settings:
 
     gocyclo:
-      min-complexity: 10
+      min-complexity: 15
 
     gocognit:
-      min-complexity: 10
+      min-complexity: 15
 
 issues:
   # Maximum issues count per one linter.

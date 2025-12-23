@@ -86,7 +86,7 @@ func (a *App) Run(cancelStartTimeout context.CancelFunc) error {
 	defer close(serverErr)
 
 	// Запуск всего...
-	ctx := context.WithoutCancel(context.Background()) // Нужен долгоживущий контекст (это просто явное его описание))).
+	ctx := context.WithoutCancel(context.Background()) // Нужен долгоживущий контекст (это просто явное его описание).
 	a.TelegramClient.Run(ctx, serverErr)
 	a.TelegramBot.Run(ctx, serverErr)
 

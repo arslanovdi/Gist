@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
@@ -25,7 +26,7 @@ ENV must be set for specific llm
 export OPENROUTER_API_KEY=<your API key>
 export GEMINI_API_KEY=<your API key>
 export OPENAI_API_KEY=<your API key>
-etc..
+etc...
 */
 
 // Тип входных данных для запроса к LLM.
@@ -39,7 +40,12 @@ type GenkitService struct {
 	g      *genkit.Genkit
 	config any // Настройки модели, задаются при инициализации фреймворка
 
-	getChatGistFlow *core.Flow[*chat, string, struct{}] // Сценарий (поток) выполнения запросов к LLM
+	contextWindow  int           // context window
+	driftPercent   int           // Процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
+	symbolPerToken int           // 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
+	flowTimeout    time.Duration // Тайм-аут выполнения сценария LLM
+
+	getChatGistFlow *core.Flow[*chat, []string, struct{}] // Сценарий (поток) выполнения запросов к LLM
 }
 
 // initOpenRouter инициализация genkit для работы с платформой агрегатором LLM - OpenRouter.
@@ -50,6 +56,8 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 	if apiKey == "" {
 		return fmt.Errorf("OPENROUTER_API_KEY environment variable not set")
 	}
+
+	s.contextWindow = cfg.LLM.OpenRouter.ContextWindow
 
 	openRouterPlugin := &oaic.OpenAICompatible{
 		Provider: "openrouter",
@@ -161,6 +169,9 @@ func NewGenkitService(ctx context.Context, cfg *config.Config) (*GenkitService, 
 	}
 
 	service := &GenkitService{}
+	service.flowTimeout = cfg.LLM.FlowTimeout
+	service.driftPercent = cfg.LLM.DriftPercent
+	service.symbolPerToken = cfg.LLM.SymbolPerToken
 
 	switch cfg.LLM.ClientType {
 

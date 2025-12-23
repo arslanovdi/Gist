@@ -13,12 +13,12 @@ import (
 
 // CoreService определяет интерфейс для взаимодействия с бизнес-логикой.
 type CoreService interface {
-	GetAllChats(ctx context.Context) ([]model.Chat, error)
-	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error)
-	GetFavoriteChats(ctx context.Context) ([]model.Chat, error)
-	GetChatGist(ctx context.Context, chatID int64) (string, error)
-	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error)
-	ChangeFavorites(ctx context.Context, chatID int64) error
+	GetAllChats(ctx context.Context) ([]model.Chat, error)                // Возвращает список всех чатов пользователя.
+	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error) // Возвращает список чатов с непрочитанными сообщениями.
+	GetFavoriteChats(ctx context.Context) ([]model.Chat, error)           // Возвращает список избранных чатов.
+	GetChatGist(ctx context.Context, chatID int64) ([]string, error)      // Возвращает короткий пересказ непрочитанных сообщений чата.
+	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error) // Получение информации о чате из кэша
+	ChangeFavorites(ctx context.Context, chatID int64) error              // Добавление чата в избранное
 }
 
 // CallbackHandler определяет интерфейс для обработчиков колбэков от инлайн кнопок
