@@ -10,8 +10,12 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-// Retry логика с экспоненциальным backoff для 429
+// llm от Xiaomi, зафиксированный тайм-аут ответа 11.40m !!!
+
+// Retry логика с экспоненциальным backoff для 429 // TODO и тайм-аутом ответа от llm в 60 секунд.
 func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Logger) (*ai.ModelResponse, error) {
+
+	start := time.Now()
 
 	maxRetries := 7
 	baseDelay := 1 * time.Second
@@ -19,6 +23,7 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		resp, err := prompt.Execute(ctx, ai.WithInput(input))
 		if err == nil {
+			log.Debug("запрос к llm выполнен успешно", slog.Any("время обработки", time.Since(start).String()))
 			return resp, nil // Успех
 		}
 
@@ -44,13 +49,14 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 			continue
 		}
 
+		log.Debug("запрос к llm НЕ выполнен", slog.Any("время обработки", time.Since(start).String()))
 		// Для других ошибок - не ретраим
 		return nil, fmt.Errorf("prompt execute failed: %w", err)
 	}
 	return nil, fmt.Errorf("unreachable")
 }
 
-// Проверяет, является ли ошибка 429 или 502 от OpenRouter
+// Проверяет, является ли ошибка 429 или 502 от OpenRouter. Ollama тоже отдает 429
 func isErrorToRetry(err error) bool {
 	errStr := strings.ToLower(err.Error())
 	return strings.Contains(errStr, "429") || // 429 Too Many Requests

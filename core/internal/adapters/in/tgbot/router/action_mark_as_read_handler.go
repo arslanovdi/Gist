@@ -28,12 +28,7 @@ func (h *MarkAsReadHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payl
 	log := slog.With("func", "router.MarkAsReadHandler")
 	log.Debug("handling mark as read callback")
 
-	chat, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)
-	if errD != nil {
-		return fmt.Errorf("NewMarkAsReadHandler.GetChatDetail: %w", errD)
-	}
-
-	errM := h.CoreService.MarkAsRead(ctx, chat, 0) // 0 отметить все сообщения
+	errM := h.CoreService.MarkAsRead(ctx, payload.ChatID, payload.Page)
 	if errM != nil {
 		return fmt.Errorf("NewMarkAsReadHandler: %w", errM)
 	}

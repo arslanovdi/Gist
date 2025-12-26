@@ -2,12 +2,21 @@ package core
 
 import (
 	"context"
-
-	"github.com/arslanovdi/Gist/core/internal/domain/model"
+	"fmt"
 )
 
-// MarkAsRead отметить сообщения чата как прочитанные.
-func (g *Gist) MarkAsRead(ctx context.Context, chat *model.Chat, MaxID int) error {
+// MarkAsRead отметить сообщения чата как прочитанные. Нумерация страниц начинается с 1.
+func (g *Gist) MarkAsRead(ctx context.Context, chatID int64, pageID int) error {
 
-	return g.tgClient.MarkAsRead(ctx, chat, MaxID)
+	chat, errD := g.GetChatDetail(ctx, chatID)
+	if errD != nil {
+		return fmt.Errorf("core.MarkAsRead: %w", errD)
+	}
+
+	errM := g.tgClient.MarkAsRead(ctx, chat, chat.Gist[pageID-1].LastMessageID)
+	if errM != nil {
+		return fmt.Errorf("core.MarkAsRead: %w", errM)
+	}
+
+	return nil
 }

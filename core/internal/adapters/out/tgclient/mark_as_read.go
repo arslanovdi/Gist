@@ -10,16 +10,16 @@ import (
 )
 
 // MarkAsRead отмечает чат как прочитанный, MaxID - id сообщения, до которого все считаются прочитанными
-func (s *Session) MarkAsRead(ctx context.Context, chat *model.Chat, MaxID int) error {
+func (s *Session) MarkAsRead(ctx context.Context, chat *model.Chat, lastMessageID int) error {
 
 	log := slog.With("func", "tgclient.MarkAsRead")
-	log.Debug("Mark As Read", slog.Int64("chat_id", chat.ID), slog.Int("max_id", MaxID))
+	log.Debug("Mark As Read", slog.Int64("chat_id", chat.ID), slog.Int("max_id", lastMessageID))
 
 	switch peer := chat.Peer.(type) {
 	case *tg.InputPeerChat, *tg.InputPeerUser:
 		req := &tg.MessagesReadHistoryRequest{
 			Peer:  chat.Peer,
-			MaxID: MaxID,
+			MaxID: lastMessageID,
 		}
 
 		_, err := s.client.API().MessagesReadHistory(ctx, req) // TODO проверить
@@ -31,7 +31,7 @@ func (s *Session) MarkAsRead(ctx context.Context, chat *model.Chat, MaxID int) e
 	case *tg.InputPeerChannel:
 		req := &tg.ChannelsReadHistoryRequest{
 			Channel: &tg.InputChannel{ChannelID: peer.ChannelID, AccessHash: peer.AccessHash},
-			MaxID:   MaxID,
+			MaxID:   lastMessageID,
 		}
 
 		_, err := s.client.API().ChannelsReadHistory(ctx, req)

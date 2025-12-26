@@ -14,7 +14,7 @@ import (
 const maxGistLength = 3900
 
 // GetChatGist выполняет запрос к LLM - сценарий getChatGistFlow.
-func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Message) ([]string, error) {
+func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Message) ([]model.BatchGist, error) {
 
 	log := slog.With("func", "llm.GetChatGist")
 	log.Debug("get chat gist start", slog.Int("message count", len(messages)))
@@ -28,7 +28,10 @@ func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Messag
 	}
 
 	for i := range gist {
-		log.Debug("get chat gist success", slog.Int("batch number", i), slog.String("chat gist", gist[i]))
+		log.Debug("get chat gist success",
+			slog.Int("batch number", i),
+			slog.String("chat gist", gist[i].Gist),
+			slog.Int("last message id", gist[i].LastMessageID))
 	}
 
 	return gist, nil
@@ -57,13 +60,13 @@ func (s *GenkitService) defineGetChatGistFlow() {
 	)
 
 	// Определяем сценарий(flow) getChatGistFlow
-	s.getChatGistFlow = genkit.DefineFlow(s.g, "getChatGistFlow", func(ctx context.Context, input *chat) ([]string, error) {
+	s.getChatGistFlow = genkit.DefineFlow(s.g, "getChatGistFlow", func(ctx context.Context, input *chat) ([]model.BatchGist, error) {
 
 		log := slog.With("func", "getChatGistFlow")
 		// Разбивка сообщений на батчи, размером = contextWindow - driftPercent токенов.
-		from := 0                 // начало батча
-		to := 0                   // конец батча
-		gist := make([]string, 0) // результат
+		from := 0                          // начало батча
+		to := 0                            // конец батча
+		gist := make([]model.BatchGist, 0) // результат
 
 		for {
 			batchSize := 0
@@ -96,9 +99,15 @@ func (s *GenkitService) defineGetChatGistFlow() {
 			// Ограничиваем длину сообщения.
 			if len(resp.Text()) > maxGistLength {
 				log.Warn("gist is too long, crop it", slog.Int("length", len(resp.Text())))
-				gist = append(gist, resp.Text()[:maxGistLength]+"\ncropped!\n") // сохраняем суть сообщений текущего батча, обрезаем по длине, если превышает максимальную длину телеграм сообщения.
+				gist = append(gist, model.BatchGist{
+					Gist:          resp.Text()[:maxGistLength] + "\ncropped!\n",
+					LastMessageID: input.Messages[from].ID,
+				}) // сохраняем суть сообщений текущего батча, обрезаем по длине, если превышает максимальную длину телеграм сообщения.
 			} else {
-				gist = append(gist, resp.Text()) // сохраняем суть сообщений текущего батча
+				gist = append(gist, model.BatchGist{
+					Gist:          resp.Text(),
+					LastMessageID: input.Messages[from].ID,
+				}) // сохраняем суть сообщений текущего батча
 			}
 
 			if to == len(input.Messages) { // Прерываем цикл, после обработки всех сообщений
@@ -107,6 +116,8 @@ func (s *GenkitService) defineGetChatGistFlow() {
 
 			from = to // Сдвигаем курсор батча
 		}
+
+		log.Debug("getChatGistFlow success", slog.Int("gist count", len(gist)))
 
 		return gist, nil
 	})

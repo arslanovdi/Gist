@@ -45,7 +45,7 @@ type GenkitService struct {
 	symbolPerToken int           // 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
 	flowTimeout    time.Duration // Тайм-аут выполнения сценария LLM
 
-	getChatGistFlow *core.Flow[*chat, []string, struct{}] // Сценарий (поток) выполнения запросов к LLM
+	getChatGistFlow *core.Flow[*chat, []model.BatchGist, struct{}] // Сценарий (поток) выполнения запросов к LLM
 }
 
 // initOpenRouter инициализация genkit для работы с платформой агрегатором LLM - OpenRouter.
@@ -82,6 +82,8 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 // initOllama инициализация genkit для работы с платформой для локального запуска LLM - Ollama.
 func (s *GenkitService) initOllama(ctx context.Context, cfg *config.Config) {
 
+	s.contextWindow = cfg.LLM.Ollama.ContextWindow
+
 	ollamaPlugin := &ollama.Ollama{
 		ServerAddress: cfg.LLM.Ollama.ServerAddress,
 		Timeout:       cfg.LLM.Ollama.Timeout,
@@ -116,6 +118,8 @@ func (s *GenkitService) initGemini(ctx context.Context, cfg *config.Config) erro
 		return fmt.Errorf("GEMINI_API_KEY environment variable not set")
 	}
 
+	s.contextWindow = cfg.LLM.Gemini.ContextWindow
+
 	// инициализация genkit с подключенным плагином GoogleAI
 	s.g = genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
@@ -136,6 +140,8 @@ func (s *GenkitService) initOpenAI(ctx context.Context, cfg *config.Config) erro
 	if apiKey == "" {
 		return fmt.Errorf("OPENAI_API_KEY environment variable not set")
 	}
+
+	s.contextWindow = cfg.LLM.OpenAI.ContextWindow
 
 	oaiPlugin := &oai.OpenAI{
 		APIKey: apiKey,

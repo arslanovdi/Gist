@@ -33,8 +33,9 @@ func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payloa
 		_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID) // Получаем краткий пересказ, сохраняем его в кэш.
 		if errG != nil {
 			log.Error("GetChatGist", slog.Any("error", errG))
+		} else {
+			gistPage = 1
 		}
-		gistPage = 1
 	} else {
 		gistPage = payload.Page
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 // GetChatGist возвращает короткий пересказ непрочитанных сообщений чата.
-func (g *Gist) GetChatGist(ctx context.Context, chatID int64) ([]string, error) {
+func (g *Gist) GetChatGist(ctx context.Context, chatID int64) ([]model.BatchGist, error) {
 	chat, ok := g.cache[chatID]
 	if !ok {
 		return nil, model.ErrChatNotFoundInCache
