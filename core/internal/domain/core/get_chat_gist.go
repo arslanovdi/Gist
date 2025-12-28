@@ -13,7 +13,7 @@ func (g *Gist) GetChatGist(ctx context.Context, chatID int64) ([]model.BatchGist
 		return nil, model.ErrChatNotFoundInCache
 	}
 
-	messages, errF := g.tgClient.FetchUnreadMessages(ctx, *chat) // получаем список непрочитанных сообщений чата
+	messages, errF := g.tgClient.FetchUnreadMessages(ctx, chat) // получаем список непрочитанных сообщений чата
 	if errF != nil {
 		return nil, errF
 	}

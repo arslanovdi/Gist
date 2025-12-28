@@ -30,6 +30,7 @@ func (b *Bot) RegisterHandlers(_ context.Context, serverErr chan error) {
 	b.router.RegisterHandler(router.NewAddToFavoritesHandler(base))
 	b.router.RegisterHandler(router.NewTTSHandler(base))
 	b.router.RegisterHandler(router.NewMarkAsReadHandler(base))
+	b.router.RegisterHandler(router.NewGistHandler(base))
 
 	var errH error
 	b.bh, errH = th.NewBotHandler(b.bot, b.updates)

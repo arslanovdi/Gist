@@ -27,18 +27,6 @@ func (h *ChatMenuHandler) CanHandle(payload *CallbackPayload) bool {
 func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.ChatMenuHandler")
 	log.Debug("handling main menu callback")
-	gistPage := 0
-
-	if payload.Page == 0 { // Если страница не передана, значит краткого пересказа чата еще нет
-		_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID) // Получаем краткий пересказ, сохраняем его в кэш.
-		if errG != nil {
-			log.Error("GetChatGist", slog.Any("error", errG))
-		} else {
-			gistPage = 1
-		}
-	} else {
-		gistPage = payload.Page
-	}
 
 	chatDetail, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)
 	if errD != nil {
@@ -46,5 +34,10 @@ func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payloa
 		log.Error("GetChatDetail", slog.Any("error", errD))
 	}
 
-	return h.showChatDetail(ctx, *chatDetail, payload.Src, gistPage)
+	page := payload.Page
+	if page == 0 && len(chatDetail.Gist) > 0 { // Если открываем чат, в котором есть сгенерированный краткий пересказ; page==0 только при первом открытии чата.
+		page = 1 // Отображаем первую страницу пересказа.
+	}
+
+	return h.showChatDetail(ctx, chatDetail, payload.Src, page) // page меняется по нажатию кнопок вправо/влево
 }

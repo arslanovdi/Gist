@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 )
@@ -20,16 +21,20 @@ func (g *Gist) GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, er
 		return nil, fmt.Errorf("GetChatsWithUnreadMessages: %w", errA)
 	}
 
+	unreadChats := make([]model.Chat, 0)
 	// Отбрасываем чаты, где UnreadCount < UnreadThreshold
 	if len(chats) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("GetChatsWithUnreadMessages: no chat found") // TODO обработать ошибку выше
 	}
-	i := 0
-	for chats[i].UnreadCount >= g.UnreadThreshold {
-		i++
+	for i := range chats {
+		if chats[i].UnreadCount >= g.UnreadThreshold {
+			unreadChats = append(unreadChats, chats[i])
+		}
 	}
-	unreadChats := make([]model.Chat, i)
-	copy(unreadChats, chats[:i])
+	// отсортировать по убыванию UnreadCount
+	sort.Slice(unreadChats, func(i, j int) bool {
+		return unreadChats[i].UnreadCount > unreadChats[j].UnreadCount
+	})
 
 	log.Debug("Successfully get chats with unread messages", slog.Any("unread chats count", len(unreadChats)))
 

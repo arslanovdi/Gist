@@ -40,10 +40,11 @@ type GenkitService struct {
 	g      *genkit.Genkit
 	config any // Настройки модели, задаются при инициализации фреймворка
 
-	contextWindow  int           // context window
-	driftPercent   int           // Процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
-	symbolPerToken int           // 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
-	flowTimeout    time.Duration // Тайм-аут выполнения сценария LLM
+	contextWindow    int           // context window
+	driftPercent     int           // Процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
+	symbolPerToken   int           // 1 токен ~ 3 символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
+	messagesPerBatch int           // Максимальное количество сообщений в одном запросе к LLM
+	flowTimeout      time.Duration // Тайм-аут выполнения сценария LLM
 
 	getChatGistFlow *core.Flow[*chat, []model.BatchGist, struct{}] // Сценарий (поток) выполнения запросов к LLM
 }
@@ -71,9 +72,24 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 	)
 
 	s.config = &openai.ChatCompletionNewParams{ //конфигурация
-		Temperature: openai.Float(0.7),
-		MaxTokens:   openai.Int(1000),
-		TopP:        openai.Float(0.9),
+		// Основные параметры
+		Temperature:         openai.Float(0.1), // (0.0 - 2.0) Стабильность (низкие значения) / Креативность (высокие значения)
+		MaxCompletionTokens: openai.Int(800),   // Максимальное количество токенов в генерируемом ответе (output)
+		TopP:                openai.Float(0.9), // Ограничивает выбор токенов топ-N% вероятностей. 0.9 — хороший баланс компактности и естественности.
+		// Штрафы за повторения
+		FrequencyPenalty: openai.Float(0.8), // Штрафует часто повторяющиеся слова (-2.0 до 2.0). Положительные значения → разнообразие текста.
+		PresencePenalty:  openai.Float(0.6), // Штрафует любые повторяющиеся темы/сущности. 0.2-0.6 → фокус на новых идеях.
+		// Поведение и формат
+		/*N: openai.Int(1), // Количество вариантов ответа (по умолчанию 1)
+		Stop: openai.ChatCompletionNewParamsStopUnion{ // Стоп-сигналы. Например: Stop: openai.F("Пересказ:") — остановка после ключевого слова.
+			OfString:      param.Opt[string]{},
+			OfStringArray: nil,
+		},
+		ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{ // принуждает JSON-ответ.
+			OfText:       nil,
+			OfJSONSchema: nil,
+			OfJSONObject: nil,
+		},*/
 	}
 
 	return nil
@@ -178,6 +194,7 @@ func NewGenkitService(ctx context.Context, cfg *config.Config) (*GenkitService, 
 	service.flowTimeout = cfg.LLM.FlowTimeout
 	service.driftPercent = cfg.LLM.DriftPercent
 	service.symbolPerToken = cfg.LLM.SymbolPerToken
+	service.messagesPerBatch = cfg.LLM.MessagesPerBatch
 
 	switch cfg.LLM.ClientType {
 

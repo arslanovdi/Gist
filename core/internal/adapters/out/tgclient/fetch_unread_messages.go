@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
@@ -14,7 +15,7 @@ import (
 // FetchUnreadMessages выгружает непрочитанные сообщения из телеграмм чата
 //
 //nolint:gocognit,gocyclo // cognit-21, cyclo-15
-func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error) {
+func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat) ([]model.Message, error) {
 	log := slog.With(slog.String("func", "tgclient.FetchUnreadMessages"), slog.Any("chatID", chat))
 	log.Debug("Get unread messages from chat")
 
@@ -102,6 +103,11 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]m
 	}
 
 	log.Debug("Get unread messages done", slog.Int("count", len(msgs)))
+
+	// Возвращаем сообщения в правильной хронологии, так как вычитывали их с конца.
+	slices.SortFunc(msgs, func(a, b model.Message) int {
+		return a.ID - b.ID
+	})
 
 	return msgs, nil
 }

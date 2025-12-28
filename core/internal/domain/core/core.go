@@ -9,12 +9,10 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 )
 
-const ttl = time.Minute
-
 // TelegramClient контракт для работы с телеграмм клиентом
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
-	FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error)
+	FetchUnreadMessages(ctx context.Context, chat *model.Chat) ([]model.Message, error)
 	MarkAsRead(ctx context.Context, chat *model.Chat, lastMessageID int) error
 }
 
@@ -66,6 +64,6 @@ func NewGist(tgClient TelegramClient, llmClient LLMClient, cfg *config.Config) *
 		llmClient:       llmClient,
 		requestTimeout:  cfg.Client.RequestTimeout,
 		UnreadThreshold: cfg.Settings.ChatUnreadThreshold,
-		ttl:             ttl,
+		ttl:             cfg.Project.TTL,
 	}
 }

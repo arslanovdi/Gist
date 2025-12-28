@@ -1,6 +1,7 @@
 project:
   debug: true
   shutdownTimeout: 60s
+  ttl: 1h
 
 bot:
   token: ""
@@ -23,7 +24,8 @@ llm:
   development: true
   flow_timeout: 30m # тайм-аут выполнения сценария LLM
   drift_percent: 20 # процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
-  symbol_per_token: 2 # 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
+  symbol_per_token: 3 # 1 токен ~ 3 символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
+  messages_per_batch: 800 # максимальное количество сообщений в одном запросе к LLM, меньше может быть если не хватает контекстного окна или столько просто нет))
   client_type: "OpenRouter" #  Ollama, OpenRouter, Gemini, OpenAI
   Ollama:
     server_address: "http://host.docker.internal:11434"

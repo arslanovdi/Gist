@@ -23,12 +23,25 @@ type BaseHandler struct {
 	UserID        int64 // Id пользователя = id чата с ним, используется для вывода сообщений ботом.
 }
 
-func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu Menu, gistPage int) error {
+func (b *BaseHandler) showChatDetail(ctx context.Context, chat *model.Chat, menu Menu, gistPage int) error {
 	log := slog.With("func", "router.showChatDetail")
 
 	inlineKeyboard := b.buildChatDetailMenu(chat, menu, gistPage)
 
-	text := fmt.Sprintf("📩 %s\n🔍 Краткий пересказ: %s\n📌 Непрочитано: %d сообщения ", chat.Title, chat.Gist[gistPage-1].Gist, chat.UnreadCount)
+	text := "" // Текст сообщения. Краткий пересказ выводится только если он сделан.
+	if len(chat.Gist) > 0 {
+		text = fmt.Sprintf("📩 %s\n🔍 Краткий пересказ %d/%d сообщений:\n\n %s\n", // 📌 Непрочитано: %d сообщений
+			chat.Title,
+			chat.Gist[gistPage-1].MessageCount,
+			chat.UnreadCount,
+			chat.Gist[gistPage-1].Gist,
+		)
+	} else {
+		text = fmt.Sprintf("📩 %s\n\n 📌 Непрочитано: %d сообщений",
+			chat.Title,
+			chat.UnreadCount,
+		)
+	}
 
 	if b.LastMessageID != 0 {
 		// Пытаемся отредактировать
@@ -64,7 +77,7 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat model.Chat, menu 
 
 // Создание меню для выбранного чата.
 // gistPage нумерация с 1.
-func (b *BaseHandler) buildChatDetailMenu(chat model.Chat, menu Menu, gistPage int) *telego.InlineKeyboardMarkup {
+func (b *BaseHandler) buildChatDetailMenu(chat *model.Chat, menu Menu, gistPage int) *telego.InlineKeyboardMarkup {
 	var rows [][]telego.InlineKeyboardButton
 
 	// Кнопки Назад, Далее для перелистывания страниц с кратким пересказом.
@@ -103,19 +116,32 @@ func (b *BaseHandler) buildChatDetailMenu(chat model.Chat, menu Menu, gistPage i
 	// Кнопка Пометить прочитанным
 	markReadCb := mustCallback(CallbackPayload{
 		Action: ActionMarkRead,
+		Src:    menu,
 		ChatID: chat.ID,
 		Page:   gistPage})
 	rows = append(rows, tu.InlineKeyboardRow(
 		tu.InlineKeyboardButton("✅ Пометить прочитанным").WithCallbackData(markReadCb),
 	))
 
-	// TODO Кнопка Озвучить
-	ttsCb := mustCallback(CallbackPayload{
-		Action: ActionTTS,
-		ChatID: chat.ID})
+	// Кнопка Сгенерировать пересказ
+	getGistCb := mustCallback(CallbackPayload{
+		Action: ActionGetGist,
+		ChatID: chat.ID,
+		Src:    menu,
+	})
 	rows = append(rows, tu.InlineKeyboardRow(
-		tu.InlineKeyboardButton("🔊 Озвучить").WithCallbackData(ttsCb),
+		tu.InlineKeyboardButton("✨ Сгенерировать пересказ").WithCallbackData(getGistCb),
 	))
+
+	// TODO Кнопка Озвучить
+	if len(chat.Gist) > 0 {
+		ttsCb := mustCallback(CallbackPayload{
+			Action: ActionTTS,
+			ChatID: chat.ID})
+		rows = append(rows, tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("🔊 Озвучить").WithCallbackData(ttsCb),
+		))
+	}
 
 	// Кнопка "в избранное" / "убрать из избранного"
 	favLabel := "⭐ В избранное"

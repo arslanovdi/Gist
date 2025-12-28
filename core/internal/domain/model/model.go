@@ -18,6 +18,7 @@ type Chat struct {
 
 // BatchGist структура хранит краткий пересказ батча сообщений
 type BatchGist struct {
-	LastMessageID int    // ID последнего сообщения, в данном батче
+	LastMessageID int // ID последнего сообщения, в данном батче
+	MessageCount  int
 	Gist          string // Краткий пересказ
 }

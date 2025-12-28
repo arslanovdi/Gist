@@ -21,6 +21,7 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 	baseDelay := 1 * time.Second
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		log.Debug("Запуск промпта", slog.Int("попытка", attempt))
 		resp, err := prompt.Execute(ctx, ai.WithInput(input))
 		if err == nil {
 			log.Debug("запрос к llm выполнен успешно", slog.Any("время обработки", time.Since(start).String()))
