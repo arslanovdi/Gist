@@ -1,12 +1,13 @@
 project:
   debug: true
   shutdownTimeout: 60s
+  ttl: 1h
 
 bot:
   token: ""
   ngrok_auth_token: ""
   ngrok_domain: ""
-  read_header_timeout: 60s
+  read_header_timeout: 30m
 
 client:
   app_id: 0
@@ -17,13 +18,15 @@ client:
   requestTimeout: 5m
 
 settings:
-  chat_unread_threshold: 10
+  chat_unread_threshold: 1
 
 llm:
   development: true
   flow_timeout: 30m # тайм-аут выполнения сценария LLM
-  drift_percent: 20 # процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
-  symbol_per_token: 2 # 1 токен ~ 2 русских символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
+  drift_percent: 10 # процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
+  symbol_per_token: 2 # 1 токен ~ 2-3 символа. Расчет приблизительный, так как неизвестно как работают токенизаторы различных LLM.
+  messages_per_batch: 800 # максимальное количество сообщений в одном запросе к LLM, меньше может быть если не хватает контекстного окна или столько просто нет))
+
   client_type: "OpenRouter" #  Ollama, OpenRouter, Gemini, OpenAI
   Ollama:
     server_address: "http://host.docker.internal:11434"
@@ -31,8 +34,8 @@ llm:
     model: "glm-4.6:cloud"
     context_window: 200_000  # контекстное окно LLM
   OpenRouter:
-    model: "xiaomi/mimo-v2-flash:free" #"tngtech/deepseek-r1t2-chimera:free"
-    context_window: 262_144  # контекстное окно LLM
+    model: "xiaomi/mimo-v2-flash:free" #"google/gemini-2.0-flash-exp:free" #"xiaomi/mimo-v2-flash:free" #"tngtech/deepseek-r1t2-chimera:free"
+    context_window: 260_000 #262_144# контекстное окно LLM
   Gemini:
     model: "gemini-2.5-flash"
     context_window: 1_000_000  # контекстное окно LLM

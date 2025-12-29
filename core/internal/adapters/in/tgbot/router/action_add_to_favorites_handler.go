@@ -6,6 +6,7 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 // AddToFavoritesHandler обработчик добавления чата в избранное
@@ -24,9 +25,12 @@ func (h *AddToFavoritesHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *AddToFavoritesHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
+func (h *AddToFavoritesHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.AddToFavoritesHandler")
 	log.Debug("handling add to favorites callback")
+
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
 
 	errF := h.CoreService.ChangeFavorites(ctx, payload.ChatID)
 	if errF != nil {
@@ -39,5 +43,5 @@ func (h *AddToFavoritesHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, 
 		log.Error("GetChatDetail", slog.Any("error", errD))
 	}
 
-	return h.showChatDetail(ctx, *chatDetail, payload.Src, payload.Page)
+	return h.showChatDetail(ctx, chatDetail, payload.Src, payload.Page)
 }

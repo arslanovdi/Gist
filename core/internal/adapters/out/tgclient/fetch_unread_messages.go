@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
@@ -12,15 +13,19 @@ import (
 )
 
 // FetchUnreadMessages выгружает непрочитанные сообщения из телеграмм чата
+// callback - оповещение пользователя о ходе выполнения.
 //
 //nolint:gocognit,gocyclo // cognit-21, cyclo-15
-func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]model.Message, error) {
+func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, error) {
 	log := slog.With(slog.String("func", "tgclient.FetchUnreadMessages"), slog.Any("chatID", chat))
 	log.Debug("Get unread messages from chat")
 
 	if !s.ready.Load() {
 		return nil, model.ErrNotReady
 	}
+
+	callback("📥 Загружаем сообщения из Telegram...", 0, false) // Оповещение пользователю в телеграм бот
+	ticker := time.Now()
 
 	msgs := make([]model.Message, 0)
 
@@ -94,6 +99,11 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]m
 		}
 
 		msgs = append(msgs, message)
+
+		if time.Since(ticker) > time.Second {
+			callback("📥 Загружаем сообщения из Telegram...", len(msgs), false) // Оповещение пользователю в телеграм бот
+			ticker = time.Now()
+		}
 	}
 
 	// Проверяем финальную ошибку итератора
@@ -102,6 +112,11 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat model.Chat) ([]m
 	}
 
 	log.Debug("Get unread messages done", slog.Int("count", len(msgs)))
+
+	// Возвращаем сообщения в правильной хронологии, так как вычитывали их с конца.
+	slices.SortFunc(msgs, func(a, b model.Message) int {
+		return a.ID - b.ID
+	})
 
 	return msgs, nil
 }

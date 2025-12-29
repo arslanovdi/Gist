@@ -27,9 +27,12 @@ func (h *UnreadMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *UnreadMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
+func (h *UnreadMenuHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.UnreadMenuHandler")
 	log.Debug("handling unread menu callback")
+
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
 
 	chats, errF := h.CoreService.GetChatsWithUnreadMessages(ctx)
 	if errF != nil {

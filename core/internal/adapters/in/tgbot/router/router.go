@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"unsafe"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/mymmrac/telego"
@@ -13,12 +14,13 @@ import (
 
 // CoreService определяет интерфейс для взаимодействия с бизнес-логикой.
 type CoreService interface {
-	GetAllChats(ctx context.Context) ([]model.Chat, error)                // Возвращает список всех чатов пользователя.
-	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error) // Возвращает список чатов с непрочитанными сообщениями.
-	GetFavoriteChats(ctx context.Context) ([]model.Chat, error)           // Возвращает список избранных чатов.
-	GetChatGist(ctx context.Context, chatID int64) ([]string, error)      // Возвращает короткий пересказ непрочитанных сообщений чата.
-	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error) // Получение информации о чате из кэша
-	ChangeFavorites(ctx context.Context, chatID int64) error              // Добавление чата в избранное
+	GetAllChats(ctx context.Context) ([]model.Chat, error)                                                                       // Возвращает список всех чатов пользователя.
+	GetChatsWithUnreadMessages(ctx context.Context) ([]model.Chat, error)                                                        // Возвращает список чатов с непрочитанными сообщениями.
+	GetFavoriteChats(ctx context.Context) ([]model.Chat, error)                                                                  // Возвращает список избранных чатов.
+	GetChatGist(ctx context.Context, chatID int64, callback func(message string, part int, llm bool)) ([]model.BatchGist, error) // Возвращает короткий пересказ непрочитанных сообщений чата.
+	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error)                                                        // Получение информации о чате из кэша
+	ChangeFavorites(ctx context.Context, chatID int64) error                                                                     // Добавление чата в избранное
+	MarkAsRead(ctx context.Context, chatID int64, pageID int) (*model.Chat, error)                                               // Отмечает указанный чат как прочитанный, удаляя из кэша прочитанный пересказ. Возвращает обновленный объект чата.
 }
 
 // CallbackHandler определяет интерфейс для обработчиков колбэков от инлайн кнопок
@@ -27,7 +29,7 @@ type CallbackHandler interface {
 	Handle(ctx *th.Context, query telego.CallbackQuery, payload *CallbackPayload) error
 }
 
-// CallbackRouter управляет маршрутизацией колбэков
+// CallbackRouter обработчик колбэков (роутер), который уже вызывает нужный метод. Управляет маршрутизацией колбэков
 type CallbackRouter struct {
 	log *slog.Logger
 
@@ -47,7 +49,7 @@ func (r *CallbackRouter) RegisterHandler(handler CallbackHandler) {
 	r.handlers = append(r.handlers, handler)
 }
 
-// Handle обрабатывает входящий колбэк
+// Handle маршрутизация колбэков.
 func (r *CallbackRouter) Handle(ctx *th.Context, query telego.CallbackQuery) error {
 	if query.Data == "" {
 		return fmt.Errorf("no callback data")
@@ -59,9 +61,10 @@ func (r *CallbackRouter) Handle(ctx *th.Context, query telego.CallbackQuery) err
 		return fmt.Errorf("invalid callback data: %w", err)
 	}
 
-	fmt.Println(payload) // TODO delete this
+	fmt.Println(payload) // TODO delete this Выводить в виде JSON?
+	fmt.Println(unsafe.Sizeof(payload))
 
-	for _, handler := range r.handlers {
+	for _, handler := range r.handlers { // Перебор зарегистрированных колбэков
 		if handler.CanHandle(payload) {
 			return handler.Handle(ctx, query, payload)
 		}

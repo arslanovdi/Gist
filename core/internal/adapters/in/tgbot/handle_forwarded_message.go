@@ -25,7 +25,7 @@ func (b *Bot) HandleForwardedMessage(ctx *th.Context, message telego.Message) er
 	case *telego.MessageOriginChat:
 		forwardID = f.SenderChat.ID
 	case *telego.MessageOriginUser:
-		forwardID = f.SenderUser.ID
+		// пересланное сообщение пользователя не хранит ID чата, в котором оно было написано!
 	case *telego.MessageOriginHiddenUser:
 	}
 

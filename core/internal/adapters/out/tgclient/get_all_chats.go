@@ -54,12 +54,15 @@ func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 		case *tg.InputPeerChat:
 			chat.ID = peer.ChatID
 			chat.Title = elem.Entities.Chats()[chat.ID].Title
+			chat.Peer = peer
 		case *tg.InputPeerUser:
 			chat.ID = peer.UserID
 			chat.Title = elem.Entities.Users()[chat.ID].Username
+			chat.Peer = peer
 		case *tg.InputPeerChannel:
 			chat.ID = peer.ChannelID
 			chat.Title = elem.Entities.Channels()[chat.ID].Title
+			chat.Peer = peer
 		case *tg.InputPeerEmpty:
 			log.Info("tg.InputPeerEmpty")
 		case *tg.InputPeerSelf:
@@ -73,8 +76,6 @@ func (s *Session) GetAllChats(ctx context.Context) ([]model.Chat, error) {
 		default:
 			log.Error("Unknown peer type")
 		}
-
-		chat.Peer = elem.Peer
 
 		chats = append(chats, chat)
 	}
