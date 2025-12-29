@@ -26,9 +26,13 @@ func (h *MainMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *MainMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, _ *CallbackPayload) error {
+func (h *MainMenuHandler) Handle(ctx *th.Context, query telego.CallbackQuery, _ *CallbackPayload) error {
 	log := slog.With("func", "router.MainMenuHandler")
 	log.Debug("handling main menu callback")
+
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
+
 	return h.showMainMenu(ctx)
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 // ChatMenuHandler Вывод информации по выбранному чату
@@ -24,9 +25,12 @@ func (h *ChatMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *ChatMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
+func (h *ChatMenuHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.ChatMenuHandler")
 	log.Debug("handling main menu callback")
+
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
 
 	chatDetail, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)
 	if errD != nil {

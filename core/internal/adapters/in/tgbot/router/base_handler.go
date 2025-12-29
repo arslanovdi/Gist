@@ -215,3 +215,23 @@ func (b *BaseHandler) buildChatsMenu(chats []model.Chat, page int, menu Menu) *t
 
 	return tu.InlineKeyboard(rows...)
 }
+
+// Редактирование сообщения с меню.
+func (b *BaseHandler) editMessage(ctx context.Context, text string) error {
+
+	if b.LastMessageID != 0 {
+		// Пытаемся отредактировать
+		message := tu.EditMessageText(
+			tu.ID(b.UserID),
+			b.LastMessageID,
+			text,
+		)
+
+		_, errE := b.Bot.EditMessageText(ctx, message)
+		if errE != nil {
+			return fmt.Errorf("router.editMessage: %w", errE)
+		}
+	}
+
+	return nil
+}

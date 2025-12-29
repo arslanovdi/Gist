@@ -27,9 +27,12 @@ func (h *FavoritesMenuHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *FavoritesMenuHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
+func (h *FavoritesMenuHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "router.FavoritesMenuHandler")
 	log.Debug("handling favorites menu callback")
+
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
 
 	chats, errF := h.CoreService.GetFavoriteChats(ctx)
 	if errF != nil {

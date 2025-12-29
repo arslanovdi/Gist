@@ -46,7 +46,7 @@ type GenkitService struct {
 	messagesPerBatch int           // Максимальное количество сообщений в одном запросе к LLM
 	flowTimeout      time.Duration // Тайм-аут выполнения сценария LLM
 
-	getChatGistFlow *core.Flow[*chat, []model.BatchGist, struct{}] // Сценарий (поток) выполнения запросов к LLM
+	getChatGistStreamingFlow *core.Flow[*chat, []model.BatchGist, *int]
 }
 
 // initOpenRouter инициализация genkit для работы с платформой агрегатором LLM - OpenRouter.

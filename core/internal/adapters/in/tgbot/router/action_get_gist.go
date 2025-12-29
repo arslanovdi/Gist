@@ -1,11 +1,14 @@
 package router
 
 import (
+	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 // GistHandler получает краткий пересказ чата.
@@ -24,11 +27,25 @@ func (h *GistHandler) CanHandle(payload *CallbackPayload) bool {
 }
 
 // Handle Реализация интерфейса CallbackHandler
-func (h *GistHandler) Handle(ctx *th.Context, _ telego.CallbackQuery, payload *CallbackPayload) error {
+func (h *GistHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload *CallbackPayload) error {
 	log := slog.With("func", "GistHandler")
 	log.Debug("handling get gist callback")
 
-	_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID) // Получаем краткий пересказ, сохраняем его в кэш.
+	processing := func(message string, part int, llm bool) { // callback функция для оповещения о прогрессе выполнения.
+		if llm {
+			bar := strings.Repeat("█", part/10) + strings.Repeat("░", 10-part/10)
+			_ = h.editMessage(ctx,
+				fmt.Sprintf("%s\n\n [%s] %d%%", message, bar, part))
+		} else {
+			_ = h.editMessage(ctx,
+				fmt.Sprintf("%s\n\n %d сообщений загружено", message, part))
+		}
+	}
+
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID)) //.WithText("⏳ Генерируем пересказ..."))
+
+	_, errG := h.CoreService.GetChatGist(ctx, payload.ChatID, processing) // Получаем краткий пересказ, сохраняем его в кэш.
 	if errG != nil {
 		log.Error("GetChatGist", slog.Any("error", errG))
 	}

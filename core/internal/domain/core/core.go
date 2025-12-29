@@ -12,13 +12,13 @@ import (
 // TelegramClient контракт для работы с телеграмм клиентом
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
-	FetchUnreadMessages(ctx context.Context, chat *model.Chat) ([]model.Message, error)
+	FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, error)
 	MarkAsRead(ctx context.Context, chat *model.Chat, lastMessageID int) error
 }
 
 // LLMClient контракт для работы с LLM
 type LLMClient interface {
-	GetChatGist(ctx context.Context, messages []model.Message) ([]model.BatchGist, error)
+	GetChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
 }
 
 // Gist представляет ядро бизнес-логики приложения.
