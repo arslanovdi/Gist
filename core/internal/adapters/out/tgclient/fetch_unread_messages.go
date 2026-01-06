@@ -24,6 +24,7 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat, cal
 		return nil, model.ErrNotReady
 	}
 
+	// TODO переделать callback на отображение progressbar, мы ведь знаем общее кол-во сообщений, можно вычислить процент.
 	callback("📥 Загружаем сообщения из Telegram...", 0, false) // Оповещение пользователю в телеграм бот
 	ticker := time.Now()
 

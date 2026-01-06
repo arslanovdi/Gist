@@ -133,13 +133,29 @@ func (b *BaseHandler) buildChatDetailMenu(chat *model.Chat, menu Menu, gistPage 
 		tu.InlineKeyboardButton("✨ Сгенерировать пересказ").WithCallbackData(getGistCb),
 	))
 
-	// TODO Кнопка Озвучить
-	if len(chat.Gist) > 0 {
-		ttsCb := mustCallback(CallbackPayload{
-			Action: ActionTTS,
-			ChatID: chat.ID})
+	// Кнопка Озвучить
+	ttsCb := mustCallback(CallbackPayload{
+		Action: ActionTTS,
+		ChatID: chat.ID,
+		Page:   gistPage,
+	})
+
+	ttsAllCb := mustCallback(CallbackPayload{
+		Action: ActionTTS,
+		ChatID: chat.ID,
+		Page:   0,
+	})
+
+	switch {
+	case len(chat.Gist) == 1:
+		// Есть только 1 батч, отображаем только кнопку Озвучить.
 		rows = append(rows, tu.InlineKeyboardRow(
 			tu.InlineKeyboardButton("🔊 Озвучить").WithCallbackData(ttsCb),
+		))
+	case len(chat.Gist) > 1: // Есть несколько батчей, отображаем кнопки Озвучить; Озвучить всё.
+		rows = append(rows, tu.InlineKeyboardRow(
+			tu.InlineKeyboardButton("🔊 Озвучить").WithCallbackData(ttsCb),
+			tu.InlineKeyboardButton("🔊 Озвучить всё").WithCallbackData(ttsAllCb),
 		))
 	}
 

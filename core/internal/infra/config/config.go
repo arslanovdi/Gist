@@ -71,6 +71,17 @@ type Config struct {
 			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"OpenAI"`
 	} `yaml:"llm"`
+
+	TTS struct {
+		Development bool          `yaml:"development"`
+		FlowTimeout time.Duration `mapstructure:"flow_timeout"` // Тайм-аут выполнения сценария LLM
+		ClientType  string        `mapstructure:"client_type"`  // switch Gemini
+		Gemini      struct {
+			Model        string `yaml:"model"`
+			LanguageCode string `mapstructure:"language_code"`
+			VoiceName    string `mapstructure:"voice_name"`
+		} `yaml:"Gemini"`
+	} `mapstructure:"llm_tts"`
 }
 
 // LoadConfig загружает конфигурацию приложения из YAML-файла.

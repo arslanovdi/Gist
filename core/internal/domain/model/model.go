@@ -12,6 +12,7 @@ type Chat struct {
 	UnreadCount       int         // From Dialogs.UnreadCount
 	IsFavorite        bool        // TODO Поле Временно, вынести настройки в БД
 	Gist              []BatchGist // Краткий пересказ каждого батча сообщений, батчи формируются в соответствии с контекстным окном LLM.
+	AudioFile         string      // Имя файла с аудиопересказом всех батчей.
 	Peer              tg.InputPeerClass
 	LastReadMessageID int
 }
@@ -21,4 +22,5 @@ type BatchGist struct {
 	LastMessageID int // ID последнего сообщения, в данном батче
 	MessageCount  int
 	Gist          string // Краткий пересказ
+	AudioFile     string // Имя файла с аудиопересказом батча
 }

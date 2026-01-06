@@ -21,10 +21,15 @@ type LLMClient interface {
 	GetChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
 }
 
+type TTSClient interface {
+	GenerateAudioGist(ctx context.Context, chat *model.Chat) error // Генерирует аудиопересказы по каждому из батчей
+}
+
 // Gist представляет ядро бизнес-логики приложения.
 type Gist struct {
 	tgClient  TelegramClient
 	llmClient LLMClient
+	ttsClient TTSClient
 
 	cache      map[int64]*model.Chat // Для быстрого доступа TODO вынести кэш в отдельный слой?
 	chats      []model.Chat
@@ -58,10 +63,11 @@ func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, erro
 }
 
 // NewGist конструктор
-func NewGist(tgClient TelegramClient, llmClient LLMClient, cfg *config.Config) *Gist {
+func NewGist(tgClient TelegramClient, llmClient LLMClient, ttsClient TTSClient, cfg *config.Config) *Gist {
 	return &Gist{
 		tgClient:        tgClient,
 		llmClient:       llmClient,
+		ttsClient:       ttsClient,
 		requestTimeout:  cfg.Client.RequestTimeout,
 		UnreadThreshold: cfg.Settings.ChatUnreadThreshold,
 		ttl:             cfg.Project.TTL,

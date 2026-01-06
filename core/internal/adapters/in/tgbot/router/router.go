@@ -21,6 +21,7 @@ type CoreService interface {
 	GetChatDetail(ctx context.Context, chatID int64) (*model.Chat, error)                                                        // Получение информации о чате из кэша
 	ChangeFavorites(ctx context.Context, chatID int64) error                                                                     // Добавление чата в избранное
 	MarkAsRead(ctx context.Context, chatID int64, pageID int) (*model.Chat, error)                                               // Отмечает указанный чат как прочитанный, удаляя из кэша прочитанный пересказ. Возвращает обновленный объект чата.
+	GetAudioGist(ctx context.Context, chatID int64, pageID int) (string, error)                                                  // Возвращает аудиопересказ батча, если PageID=0 то всех батчей
 }
 
 // CallbackHandler определяет интерфейс для обработчиков колбэков от инлайн кнопок

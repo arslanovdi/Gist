@@ -42,3 +42,13 @@ llm:
   OpenAI:
     model: "gpt-4o"
     context_window: 128_000  # контекстное окно LLM
+
+llm_tts:
+  development: true
+  flow_timeout: 30m # тайм-аут выполнения сценария LLM
+
+  client_type: "Gemini" #Gemini
+  Gemini:
+    model: "gemini-2.5-flash-preview-tts"
+    language_code: "ru-RU"
+    voice_name: "Leda"

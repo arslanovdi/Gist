@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"slices"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
@@ -28,11 +30,36 @@ func (g *Gist) MarkAsRead(ctx context.Context, chatID int64, pageID int) (*model
 
 	if pageID > 0 {
 		chat.UnreadCount -= chat.Gist[pageID-1].MessageCount // уменьшаем количество непрочитанных сообщений в чате
+
+		deleteFile(chat.Gist[pageID-1].AudioFile) // удаляем файл с аудиопересказом, если есть
+
 		chat.Gist = slices.Delete(chat.Gist, pageID-1, 1)
+
+		deleteFile(chat.AudioFile) // удаляем файл с полным аудиопересказом, если есть
+		chat.AudioFile = ""        // Обнуляем полный аудиопересказ, т.к. часть пометили прочитанным
+
 		return chat, nil
 	}
 
 	chat.UnreadCount = 0 // количество непрочитанных сообщений в чате = 0
 	chat.Gist = nil
+
+	deleteFile(chat.AudioFile) // удаляем файл с полным аудиопересказом, если есть
+	chat.AudioFile = ""
+
 	return chat, nil
+}
+
+func deleteFile(name string) {
+	log := slog.With("func", "core.deleteFile")
+
+	if name == "" {
+		return
+	}
+
+	errR := os.Remove(name)
+	if errR != nil {
+		log.Error("error removing file", errR, slog.String("name", name))
+	}
+
 }
