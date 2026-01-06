@@ -13,12 +13,14 @@ func (g *Gist) GetChatGist(ctx context.Context, chatID int64, callback func(stri
 		return nil, model.ErrChatNotFoundInCache
 	}
 
-	messages, errF := g.tgClient.FetchUnreadMessages(ctx, chat, callback) // получаем список непрочитанных сообщений чата
+	messages, skipped, errF := g.tgClient.FetchUnreadMessages(ctx, chat, callback) // получаем список непрочитанных сообщений чата
 	if errF != nil {
 		return nil, errF
 	}
 
-	resp, errG := g.llmClient.GetChatGist(ctx, messages, callback) // Выделяем суть из сообщений
+	chat.Skipped = skipped
+
+	resp, errG := g.llmClient.GenerateChatGist(ctx, messages, callback) // Выделяем суть из сообщений
 	if errG != nil {
 		return nil, errG
 	}

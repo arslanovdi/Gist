@@ -2,17 +2,21 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/firebase/genkit/go/ai"
+	"google.golang.org/genai"
 )
 
 // llm от Xiaomi, зафиксированный тайм-аут ответа 11.40m !!!
 
-// Retry логика с экспоненциальным backoff для 429 // TODO и тайм-аутом ответа от llm в 60 секунд.
+// Retry логика с экспоненциальным backoff для ошибок. // TODO и тайм-аутом ответа от llm в 60 секунд.
+// Если с ошибкой прилетает время задержки, то выбирается оно, вместо экспоненциального.
 func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Logger) (*ai.ModelResponse, error) {
 
 	start := time.Now()
@@ -28,13 +32,35 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 			return resp, nil // Успех
 		}
 
-		// Проверяем, ретраить ли данную ошибку от OpenRouter TODO ошибки других LLM провайдеров пока не ловил.
+		// Проверяем, ретраить ли данную ошибку
 		if isErrorToRetry(err) {
 			if attempt == maxRetries {
 				return nil, fmt.Errorf("max retries exceeded for rate limit: %w", err)
 			}
 
 			delay := baseDelay * time.Duration(1<<attempt) // 1s, 2s, 4s, 8s, 16s
+
+			genaiErr := genai.APIError{}
+			if errors.As(err, &genaiErr) {
+
+				if genaiErr.Status == "RESOURCE_EXHAUSTED" {
+					log.Warn("genai error", slog.String("error", genaiErr.Error()))
+					return nil, model.ErrResourceExhausted
+				}
+
+				if len(genaiErr.Details) >= 2 {
+					if retryDelayVal, ok := genaiErr.Details[2]["retryDelay"]; ok { // Во время отладки ловил значение в 3-м слайсе. Если структура изменится это может стать проблемой.
+						if retryDelayStr, ok := retryDelayVal.(string); ok {
+							parsedDelay, errP := time.ParseDuration(retryDelayStr)
+							if errP == nil {
+								delay = parsedDelay // Время задержки полученное из ошибки
+
+								log.Info("retry delay from genai error", slog.Any("delay", delay.String()))
+							}
+						}
+					}
+				}
+			}
 
 			log.Warn("Rate limit hit, retrying",
 				slog.Int("attempt", attempt+1),
@@ -57,9 +83,11 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 	return nil, fmt.Errorf("unreachable")
 }
 
-// Проверяет, является ли ошибка 429 или 502 от OpenRouter. Ollama тоже отдает 429
+// Проверяет, является ли ошибка 429, 502, 503
 func isErrorToRetry(err error) bool {
 	errStr := strings.ToLower(err.Error())
-	return strings.Contains(errStr, "429") || // 429 Too Many Requests
-		strings.Contains(errStr, "502") // 502 Bad Gateway
+	return strings.Contains(errStr, "429") || // 429 Too Many Requests	(OpenRouter, Ollama, Gemini)
+		strings.Contains(errStr, "502") || // 502 Bad Gateway	(OpenRouter)
+		strings.Contains(errStr, "503") // 503 The model is overloaded	(Gemini)
+
 }

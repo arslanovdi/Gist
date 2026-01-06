@@ -5,20 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strconv"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/openai/openai-go"
 )
 
-const maxGistLength = 3900
+// Тип входных данных для запроса к LLM.
+type chat struct {
+	Messages []model.Message `json:"messages"`
+}
 
-// GetChatGist выполняет запрос к LLM - сценарий getChatGistFlow. callback - функция для оповещения пользователя о процессе выполнения.
-func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error) {
+// GenerateChatGist выполняет запрос к LLM - сценарий generateChatGistStreamingFlow. callback - функция для оповещения пользователя о процессе выполнения.
+func (s *GenkitService) GenerateChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error) {
 
-	log := slog.With("func", "llm.GetChatGist")
+	log := slog.With("func", "llm.GenerateChatGist")
 	log.Debug("get chat gist start", slog.Int("message count", len(messages)))
 
 	defer func() {
@@ -30,7 +33,7 @@ func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Messag
 	ctxFlow, cancel := context.WithTimeout(ctx, s.flowTimeout)
 	defer cancel()
 
-	streamIter := s.getChatGistStreamingFlow.Stream(ctxFlow, &chat{messages}) // Обработка Streaming Flow. С пошаговым оповещением пользователя о ходе процесса.
+	streamIter := s.generateChatGistStreamingFlow.Stream(ctxFlow, &chat{messages}) // Обработка Streaming Flow. С пошаговым оповещением пользователя о ходе процесса.
 	var gist []model.BatchGist
 	streamIter(func(value *core.StreamingFlowValue[[]model.BatchGist, *int], err error) bool {
 		if err != nil {
@@ -57,34 +60,56 @@ func (s *GenkitService) GetChatGist(ctx context.Context, messages []model.Messag
 	return gist, nil
 }
 
-// defineGetChatGistFlow определяет сценарий для генерации краткого пересказа чата.
+// defineGenerateChatGistFlow определяет сценарий для генерации краткого пересказа чата.
 //
 //nolint:gocognit
-func (s *GenkitService) defineGetChatGistFlow() {
+func (s *GenkitService) defineGenerateChatGistFlow() {
+
+	config := &openai.ChatCompletionNewParams{ //конфигурация для OpenRouter provider (OpenAI compatible), для других провайдеров нужно изменять!
+		// Основные параметры
+		Temperature:         openai.Float(0.1), // (0.0 - 2.0) Стабильность (низкие значения) / Креативность (высокие значения)
+		MaxCompletionTokens: openai.Int(2000),  // Максимальное количество токенов в генерируемом ответе (output) Если больше, то ответ будет обрезан.
+		TopP:                openai.Float(0.9), // Ограничивает выбор токенов топ-N% вероятностей. 0.9 — хороший баланс компактности и естественности.
+		// Штрафы за повторения
+		FrequencyPenalty: openai.Float(0.8), // Штрафует часто повторяющиеся слова (-2.0 до 2.0). Положительные значения → разнообразие текста.
+		PresencePenalty:  openai.Float(0.6), // Штрафует любые повторяющиеся темы/сущности. 0.2-0.6 → фокус на новых идеях.
+		// Поведение и формат
+		/*N: openai.Int(1), // Количество вариантов ответа (по умолчанию 1)
+		Stop: openai.ChatCompletionNewParamsStopUnion{ // Стоп-сигналы. Например: Stop: openai.F("Пересказ:") — остановка после ключевого слова.
+			OfString:      param.Opt[string]{},
+			OfStringArray: nil,
+		},
+		ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{ // принуждает JSON-ответ.
+			OfText:       nil,
+			OfJSONSchema: nil,
+			OfJSONObject: nil,
+		},*/
+	}
 
 	// В промпте задается ограничение в maxGistLength (3900) символов. Так как Telegram ограничивает сообщение 4096 символами.
 	prompt := `Тебе дана история сообщений из чата в Telegram.
 	Каждое сообщение содержит текст, время отправки, ID отправителя и служебную информацию (например, было ли оно отредактировано, переслано или является ответом).
-	Составь КРАТКИЙ и связный пересказ чата (МАКСИМУМ 3900 символов, цель — 3000).
+	Составь КРАТКИЙ и связный пересказ чата (длинной 3000-4000 символов, цель — 3000).
 	Сосредоточься на главных событиях, важных решениях, вопросах и ответах.
 	Технические детали (например, метки «переслано» или «отредактировано») учитывай только если они влияют на смысл.
 	Пересказ должен быть нейтральным, легко читаемым и помогать человеку быстро понять суть обсуждения.
 	История сообщений (в хронологическом порядке): {{messages}}
 	Приведи только пересказ, без пояснений и дополнительного форматирования.`
 
-	// Определяем простой запрос(prompt) getChatGistPrompt
-	getChatGistPrompt := genkit.DefinePrompt(s.g, "getChatGistPrompt",
+	// Определяем простой запрос(prompt) generateChatGistPrompt
+	generateChatGistPrompt := genkit.DefinePrompt(s.g, "generateChatGistPrompt",
 		ai.WithPrompt(prompt),                    // запрос
 		ai.WithInputType(chat{}),                 // входные данные
 		ai.WithOutputFormat(ai.OutputFormatText), // выходные данные
-		ai.WithConfig(s.config),                  // В конфигурации также задается ограничение в output токенах, и прочие параметры работы llm
+		ai.WithConfig(config),                    // В конфигурации также задается ограничение в output токенах, и прочие параметры работы llm
+		ai.WithModelName(s.DefaultTextModel),     // Используем дефолтную модель провайдер по умолчанию, заданного в конфигурации
 	)
 
-	// Определяем потоковый	 сценарий(streaming flow) getChatGistStreamingFlow
-	s.getChatGistStreamingFlow = genkit.DefineStreamingFlow(s.g, "getChatGistStreamingFlow",
+	// Определяем потоковый	 сценарий(streaming flow) generateChatGistStreamingFlow
+	s.generateChatGistStreamingFlow = genkit.DefineStreamingFlow(s.g, "generateChatGistStreamingFlow",
 		func(ctx context.Context, input *chat, cb func(ctx context.Context, percent *int) error) ([]model.BatchGist, error) {
 
-			log := slog.With("func", "getChatGistStreamingFlow")
+			log := slog.With("func", "generateChatGistStreamingFlow")
 			// Разбивка сообщений на батчи, размером = contextWindow - driftPercent токенов.
 			from := 0                          // начало батча
 			to := 0                            // конец батча
@@ -120,7 +145,7 @@ func (s *GenkitService) defineGetChatGistFlow() {
 				}
 
 				// выполняем простой запрос с Retry wrapper для обработки 429
-				resp, err := retryPrompt(ctx, getChatGistPrompt, batch, log)
+				resp, err := retryPrompt(ctx, generateChatGistPrompt, batch, log)
 				if err != nil {
 					return nil, fmt.Errorf("getChatGistFlow.getChatGistPrompt: %w", err)
 				}
@@ -136,27 +161,22 @@ func (s *GenkitService) defineGetChatGistFlow() {
 					lastMessageID--
 				}
 
-				// Ограничиваем длину сообщения. TODO вынести в логику телеграм клиента?
-				if len(resp.Text()) > maxGistLength {
-					log.Warn("gist is too long, crop it", slog.Int("length", len(resp.Text()))) // TODO исправить логику на работу с unicode
-					gist = append(gist, model.BatchGist{
-						Gist:          resp.Text()[:maxGistLength] + "\n\ncropped " + strconv.Itoa(len(resp.Text())-maxGistLength) + "!",
-						LastMessageID: input.Messages[lastMessageID].ID,
-						MessageCount:  to - from,
-					}) // сохраняем суть сообщений текущего батча, обрезаем по длине, если превышает максимальную длину телеграм сообщения.
-				} else {
-					gist = append(gist, model.BatchGist{
-						Gist:          resp.Text(),
-						LastMessageID: input.Messages[lastMessageID].ID,
-						MessageCount:  to - from,
-					}) // сохраняем суть сообщений текущего батча
-				}
+				gist = append(gist, model.BatchGist{
+					Gist:            resp.Text(),
+					LastMessageID:   input.Messages[lastMessageID].ID,
+					LastMessageData: input.Messages[lastMessageID].Timestamp,
+					MessageCount:    to - from, // кол-во обработанных сообщений в батче, учитывая и пропущенные (пустые, системные и т.п.)
+				}) // сохраняем суть сообщений текущего батча
 
 				if to == len(input.Messages) { // Прерываем цикл, после обработки всех сообщений
 					break
 				}
 
-				log.Debug("move to next batch", slog.Int("from", from), slog.Int("to", to), slog.Int("messages in batch", to-from), slog.Int("message count", len(input.Messages)))
+				log.Debug("move to next batch",
+					slog.Int("from", from),
+					slog.Int("to", to),
+					slog.Int("messages in batch", to-from),
+					slog.Int("message count", len(input.Messages)))
 
 				from = to // Сдвигаем курсор батча
 
