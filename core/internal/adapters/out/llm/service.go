@@ -3,7 +3,6 @@ package llm
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -12,13 +11,12 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/infra/config"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	oaic "github.com/firebase/genkit/go/plugins/compat_oai"
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/ollama"
-	"github.com/openai/openai-go"
-	"google.golang.org/genai"
 )
 
 /*
@@ -29,16 +27,10 @@ export OPENAI_API_KEY=<your API key>
 etc...
 */
 
-// Тип входных данных для запроса к LLM.
-type chat struct {
-	Messages []model.Message `json:"messages"`
-}
-
 // GenkitService структура для работы с LLM через фреймворк Genkit.
 // Обеспечивает единый интерфейс для взаимодействия с различными LLM-провайдерами
 type GenkitService struct {
-	g      *genkit.Genkit
-	config any // Настройки модели, задаются при инициализации фреймворка
+	g *genkit.Genkit
 
 	contextWindow    int           // context window
 	driftPercent     int           // Процент отклонения от заданного контекстного окна (в минус), так как количество токенов можно посчитать только приблизительно.
@@ -46,19 +38,28 @@ type GenkitService struct {
 	messagesPerBatch int           // Максимальное количество сообщений в одном запросе к LLM
 	flowTimeout      time.Duration // Тайм-аут выполнения сценария LLM
 
-	getChatGistStreamingFlow *core.Flow[*chat, []model.BatchGist, *int]
+	DefaultTextModel string // Модель для текстового запроса, задается в настройках model дефолтного провайдера (default_provider)
+
+	// TTS
+	languageCode             string
+	voiceName                string
+	currentGeminiApiKeyIndex int // Параметр хранит номер используемого api ключа
+
+	cfg *config.Config
+
+	generateChatGistStreamingFlow *core.Flow[*chat, []model.BatchGist, *int]
+	generateAudioGistFlow         *core.Flow[Params, string, struct{}]
 }
 
-// initOpenRouter инициализация genkit для работы с платформой агрегатором LLM - OpenRouter.
+// withOpenRouter возвращает genkit plugin для работы с платформой агрегатором LLM - OpenRouter.
 // OpenAI compatible.
-func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) error {
+func (s *GenkitService) withOpenRouter() api.Plugin {
 
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		return fmt.Errorf("OPENROUTER_API_KEY environment variable not set")
+		slog.With("func", "llm.withOpenRouter").Error("OPENROUTER_API_KEY environment variable not set")
+		return nil
 	}
-
-	s.contextWindow = cfg.LLM.OpenRouter.ContextWindow
 
 	openRouterPlugin := &oaic.OpenAICompatible{
 		Provider: "openrouter",
@@ -66,12 +67,7 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 		BaseURL:  "https://openrouter.ai/api/v1",
 	}
 
-	s.g = genkit.Init(ctx,
-		genkit.WithPlugins(openRouterPlugin),
-		genkit.WithDefaultModel("openrouter/"+cfg.LLM.OpenRouter.Model), // Указываем используемую модель (бесплатных моделей было 42 штуки, на момент написания)
-	)
-
-	s.config = &openai.ChatCompletionNewParams{ //конфигурация
+	/*config := &openai.ChatCompletionNewParams{ //конфигурация
 		// Основные параметры
 		Temperature:         openai.Float(0.1), // (0.0 - 2.0) Стабильность (низкие значения) / Креативность (высокие значения)
 		MaxCompletionTokens: openai.Int(800),   // Максимальное количество токенов в генерируемом ответе (output)
@@ -80,7 +76,7 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 		FrequencyPenalty: openai.Float(0.8), // Штрафует часто повторяющиеся слова (-2.0 до 2.0). Положительные значения → разнообразие текста.
 		PresencePenalty:  openai.Float(0.6), // Штрафует любые повторяющиеся темы/сущности. 0.2-0.6 → фокус на новых идеях.
 		// Поведение и формат
-		/*N: openai.Int(1), // Количество вариантов ответа (по умолчанию 1)
+		N: openai.Int(1), // Количество вариантов ответа (по умолчанию 1)
 		Stop: openai.ChatCompletionNewParamsStopUnion{ // Стоп-сигналы. Например: Stop: openai.F("Пересказ:") — остановка после ключевого слова.
 			OfString:      param.Opt[string]{},
 			OfStringArray: nil,
@@ -89,30 +85,23 @@ func (s *GenkitService) initOpenRouter(ctx context.Context, cfg *config.Config) 
 			OfText:       nil,
 			OfJSONSchema: nil,
 			OfJSONObject: nil,
-		},*/
-	}
+		},
+	}*/
 
-	return nil
+	return openRouterPlugin
 }
 
-// initOllama инициализация genkit для работы с платформой для локального запуска LLM - Ollama.
-func (s *GenkitService) initOllama(ctx context.Context, cfg *config.Config) {
-
-	s.contextWindow = cfg.LLM.Ollama.ContextWindow
+// withOllama возвращает genkit plugin для работы с платформой для локального запуска LLM - Ollama.
+func (s *GenkitService) withOllama() api.Plugin {
 
 	ollamaPlugin := &ollama.Ollama{
-		ServerAddress: cfg.LLM.Ollama.ServerAddress,
-		Timeout:       cfg.LLM.Ollama.Timeout,
+		ServerAddress: s.cfg.LLM.Ollama.ServerAddress,
+		Timeout:       s.cfg.LLM.Ollama.Timeout,
 	}
-
-	s.g = genkit.Init(ctx,
-		genkit.WithPlugins(ollamaPlugin),
-		genkit.WithDefaultModel("ollama/"+cfg.LLM.Ollama.Model),
-	)
 
 	ollamaPlugin.DefineModel(s.g,
 		ollama.ModelDefinition{
-			Name: cfg.LLM.Ollama.Model,
+			Name: s.cfg.LLM.Ollama.Model,
 			Type: "chat", // "chat" or "generate"
 		},
 		&ai.ModelOptions{
@@ -124,57 +113,55 @@ func (s *GenkitService) initOllama(ctx context.Context, cfg *config.Config) {
 			},
 		},
 	) // define model
+
+	return ollamaPlugin
 }
 
-// initGemini инициализация genkit для работы с семейством моделей (LLM) Gemini AI от Google.
-func (s *GenkitService) initGemini(ctx context.Context, cfg *config.Config) error {
+// withGemini возвращает genkit plugin для работы с семейством моделей (LLM) Gemini AI от Google. nextApiKey указывает на использование следующего api ключа из массива.
+func (s *GenkitService) withGemini(nextApiKey bool) api.Plugin {
 
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		return fmt.Errorf("GEMINI_API_KEY environment variable not set")
+	log := slog.With("func", "llm.withGemini")
+
+	if nextApiKey {
+		s.currentGeminiApiKeyIndex++
+		if s.currentGeminiApiKeyIndex == len(s.cfg.LLM.Gemini.ApiKeys) { // Если ключи закончились, начинаем с первого
+			s.currentGeminiApiKeyIndex = 0
+			log.Info("Gemini Api Keys full rotation")
+		}
+
+		log.Info("Set next Gemini API KEY", slog.Int("GeminiApiKeyIndex", s.currentGeminiApiKeyIndex))
 	}
 
-	s.contextWindow = cfg.LLM.Gemini.ContextWindow
+	apiKey := s.cfg.LLM.Gemini.ApiKeys[s.currentGeminiApiKeyIndex]
 
-	// инициализация genkit с подключенным плагином GoogleAI
-	s.g = genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}),
-		genkit.WithDefaultModel("googleai/"+cfg.LLM.Gemini.Model),
-	)
-
-	s.config = &genai.GenerateContentConfig{ // конфигурация
+	/*config := &genai.GenerateContentConfig{ // конфигурация
 		Temperature: genai.Ptr[float32](1.0), // Устанавливается температура 1.0 — это делает ответы более креативными и менее предсказуемыми.
-	}
+	}*/
 
-	return nil
+	return &googlegenai.GoogleAI{
+		APIKey: apiKey,
+	}
 }
 
-// initGemini инициализация genkit для работы с моделями (LLM) от OpenAI (различные версии GPT).
-func (s *GenkitService) initOpenAI(ctx context.Context, cfg *config.Config) error {
+// withOpenAI возвращает genkit plugin для работы с моделями (LLM) от OpenAI (различные версии GPT).
+func (s *GenkitService) withOpenAI() api.Plugin {
 
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
-		return fmt.Errorf("OPENAI_API_KEY environment variable not set")
+		slog.With("func", "llm.withOpenAI").Error("OPENAI_API_KEY environment variable not set")
+		return nil
 	}
-
-	s.contextWindow = cfg.LLM.OpenAI.ContextWindow
 
 	oaiPlugin := &oai.OpenAI{
 		APIKey: apiKey,
 	}
 
-	// инициализация genkit с подключенным плагином OpenAI
-	s.g = genkit.Init(ctx,
-		genkit.WithPlugins(oaiPlugin),
-		genkit.WithDefaultModel("openai/"+cfg.LLM.OpenAI.Model),
-	)
+	/*config := &openai.ChatCompletionNewParams{ // Параметры запроса
+		Temperature: openai.Float(1.0),
+		MaxTokens:   openai.Int(4000),
+	}*/
 
-	s.config = &openai.ChatCompletionNewParams{ // Параметры запроса
-		Temperature: openai.Float(0.5),
-		MaxTokens:   openai.Int(100),
-	}
-
-	return nil
+	return oaiPlugin
 }
 
 // NewGenkitService инициализация фреймворка для работы с LLM.
@@ -190,55 +177,76 @@ func NewGenkitService(ctx context.Context, cfg *config.Config) (*GenkitService, 
 		log.Info("Start genkit in development mode")
 	}
 
-	service := &GenkitService{}
-	service.flowTimeout = cfg.LLM.FlowTimeout
-	service.driftPercent = cfg.LLM.DriftPercent
-	service.symbolPerToken = cfg.LLM.SymbolPerToken
-	service.messagesPerBatch = cfg.LLM.MessagesPerBatch
+	s := &GenkitService{}
 
-	switch cfg.LLM.ClientType {
+	s.cfg = cfg
+	s.flowTimeout = cfg.LLM.FlowTimeout
+	s.driftPercent = cfg.LLM.DriftPercent
+	s.symbolPerToken = cfg.LLM.SymbolPerToken
+	s.messagesPerBatch = cfg.LLM.MessagesPerBatch
 
-	case "Ollama":
-		service.initOllama(ctx, cfg)
-		log.Info("Start Ollama client")
+	s.languageCode = cfg.LLM.TTS.Gemini.LanguageCode
+	s.voiceName = cfg.LLM.TTS.Gemini.VoiceName
 
-	case "OpenRouter":
-		errR := service.initOpenRouter(ctx, cfg)
-		if errR != nil {
-			return nil, errR
-		}
-		log.Info("Start OpenRouter client")
+	s.initGenkit(ctx, false)
 
-	case "Gemini":
-		errR := service.initGemini(ctx, cfg)
-		if errR != nil {
-			return nil, errR
-		}
-		log.Info("Start Gemini client")
-
-	case "OpenAI":
-		errR := service.initOpenAI(ctx, cfg)
-		if errR != nil {
-			return nil, errR
-		}
-		log.Info("Start OpenAI client")
-
-	default:
-		return nil, fmt.Errorf("unknown client type %s", cfg.LLM.ClientType)
-	}
-
-	errF := service.registerFlows()
-	if errF != nil {
-		return nil, fmt.Errorf("register flows: %w", errF)
-	}
-
-	return service, nil
+	return s, nil
 }
 
 // registerFlows регистрация сценариев (потоков) выполнения промптов.
-func (s *GenkitService) registerFlows() error {
+func (s *GenkitService) registerFlows() {
 
-	s.defineGetChatGistFlow()
+	s.defineGenerateChatGistFlow()
+	s.defineGenerateAudioGistFlow()
 
-	return nil
+}
+
+func (s *GenkitService) initGenkit(ctx context.Context, nextApiKey bool) {
+
+	log := slog.With("func", "llm.initGenkit")
+
+	switch s.cfg.LLM.DefaultProvider {
+	case "Ollama":
+		s.contextWindow = s.cfg.LLM.Ollama.ContextWindow
+		s.DefaultTextModel = "ollama/" + s.cfg.LLM.Ollama.Model
+	case "OpenRouter":
+		s.contextWindow = s.cfg.LLM.OpenRouter.ContextWindow
+		s.DefaultTextModel = "openrouter/" + s.cfg.LLM.OpenRouter.Model
+	case "Gemini":
+		s.contextWindow = s.cfg.LLM.Gemini.ContextWindow
+		s.DefaultTextModel = "googleai/" + s.cfg.LLM.Gemini.Model
+	case "OpenAI":
+		s.contextWindow = s.cfg.LLM.OpenAI.ContextWindow
+		s.DefaultTextModel = "openai/" + s.cfg.LLM.OpenAI.Model
+	default:
+		log.Error("unknown provider", slog.String("defaultProvider", s.cfg.LLM.DefaultProvider))
+	}
+
+	plugins := make([]api.Plugin, 0)
+	if s.cfg.LLM.Ollama.Enabled {
+		plugins = append(plugins, s.withOllama())
+		log.Info("Start Ollama provider")
+	}
+
+	if s.cfg.LLM.OpenRouter.Enabled {
+		plugins = append(plugins, s.withOpenRouter())
+		log.Info("Start OpenRouter provider")
+	}
+
+	if s.cfg.LLM.Gemini.Enabled {
+		plugins = append(plugins, s.withGemini(nextApiKey))
+		log.Info("Start Gemini provider")
+	}
+
+	if s.cfg.LLM.OpenAI.Enabled {
+		plugins = append(plugins, s.withOpenAI())
+		log.Info("Start OpenAI provider")
+	}
+
+	// инициализация genkit с заданными в конфигурации плагинами
+	s.g = genkit.Init(ctx,
+		genkit.WithPlugins(plugins...),
+	)
+
+	s.registerFlows()
 }

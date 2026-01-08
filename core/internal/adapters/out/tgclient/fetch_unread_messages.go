@@ -14,20 +14,23 @@ import (
 
 // FetchUnreadMessages выгружает непрочитанные сообщения из телеграмм чата
 // callback - оповещение пользователя о ходе выполнения.
+// return слайс сообщений, кол-во пропущенных сообщений, ошибку.
 //
 //nolint:gocognit,gocyclo // cognit-21, cyclo-15
-func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, error) {
-	log := slog.With(slog.String("func", "tgclient.FetchUnreadMessages"), slog.Any("chatID", chat))
+func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, int, error) {
+	log := slog.With(slog.String("func", "tgclient.FetchUnreadMessages"), slog.Any("chatID", chat.ID))
 	log.Debug("Get unread messages from chat")
 
 	if !s.ready.Load() {
-		return nil, model.ErrNotReady
+		return nil, 0, model.ErrNotReady
 	}
 
-	callback("📥 Загружаем сообщения из Telegram...", 0, false) // Оповещение пользователю в телеграм бот
+	callback(fmt.Sprintf("📥 Загружаем сообщения из Telegram... (%d) сообщений.", chat.UnreadCount), 0, false) // Оповещение пользователю в телеграм бот
+	// callback("📥 Загружаем сообщения из Telegram...", 0, false)                                                // Оповещение пользователю в телеграм бот
 	ticker := time.Now()
 
 	msgs := make([]model.Message, 0)
+	skipped := 0
 
 	raw := tg.NewClient(s.client)
 
@@ -58,6 +61,7 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat, cal
 
 		// Пропускаем пустые сообщения (без текста).
 		if tgMsg.Message == "" {
+			skipped++
 			continue
 		}
 
@@ -101,22 +105,25 @@ func (s *Session) FetchUnreadMessages(ctx context.Context, chat *model.Chat, cal
 		msgs = append(msgs, message)
 
 		if time.Since(ticker) > time.Second {
-			callback("📥 Загружаем сообщения из Telegram...", len(msgs), false) // Оповещение пользователю в телеграм бот
+			callback(fmt.Sprintf("📥 Загружаем сообщения из Telegram... (%d) сообщений.", chat.UnreadCount), len(msgs), false) // Оповещение пользователю в телеграм бот
+			//callback("📥 Загружаем сообщения из Telegram...", len(msgs), false) // Оповещение пользователю в телеграм бот
 			ticker = time.Now()
 		}
 	}
 
 	// Проверяем финальную ошибку итератора
 	if iter.Err() != nil {
-		return nil, fmt.Errorf("tgclient.FetchUnreadMessages failed to iterate messages: %w", iter.Err())
+		return nil, 0, fmt.Errorf("tgclient.FetchUnreadMessages failed to iterate messages: %w", iter.Err())
 	}
 
-	log.Debug("Get unread messages done", slog.Int("count", len(msgs)))
+	log.Debug("Get unread messages done",
+		slog.Int("count", len(msgs)),
+		slog.Int("skipped", skipped))
 
 	// Возвращаем сообщения в правильной хронологии, так как вычитывали их с конца.
 	slices.SortFunc(msgs, func(a, b model.Message) int {
 		return a.ID - b.ID
 	})
 
-	return msgs, nil
+	return msgs, skipped, nil
 }

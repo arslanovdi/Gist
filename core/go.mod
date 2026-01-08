@@ -3,7 +3,7 @@ module github.com/arslanovdi/Gist/core
 go 1.25.5
 
 require (
-	github.com/firebase/genkit/go v1.2.0
+	github.com/firebase/genkit/go v1.3.0
 	github.com/gotd/contrib v0.21.1
 	github.com/gotd/td v0.136.0
 	github.com/joho/godotenv v1.5.1
@@ -13,7 +13,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.39.0
 	golang.ngrok.com/ngrok/v2 v2.1.1
 	golang.org/x/time v0.13.0
-	google.golang.org/genai v1.30.0
+	google.golang.org/genai v1.40.0
 )
 
 require (

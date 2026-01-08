@@ -3,3 +3,4 @@ core/.env
 .idea
 .genkit
 session.json
+core/configs/keys.yaml

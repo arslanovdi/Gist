@@ -12,13 +12,14 @@ import (
 // TelegramClient контракт для работы с телеграмм клиентом
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
-	FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, error)
+	FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, int, error)
 	MarkAsRead(ctx context.Context, chat *model.Chat, lastMessageID int) error
 }
 
 // LLMClient контракт для работы с LLM
 type LLMClient interface {
-	GetChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
+	GenerateChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
+	GenerateAudioGist(ctx context.Context, chat *model.Chat) error // Генерирует аудиопересказы по каждому из батчей
 }
 
 // Gist представляет ядро бизнес-логики приложения.
@@ -32,6 +33,7 @@ type Gist struct {
 	ttl        time.Duration
 
 	UnreadThreshold int
+	cfg             *config.Config
 
 	requestTimeout time.Duration
 }
@@ -65,5 +67,6 @@ func NewGist(tgClient TelegramClient, llmClient LLMClient, cfg *config.Config) *
 		requestTimeout:  cfg.Client.RequestTimeout,
 		UnreadThreshold: cfg.Settings.ChatUnreadThreshold,
 		ttl:             cfg.Project.TTL,
+		cfg:             cfg,
 	}
 }
