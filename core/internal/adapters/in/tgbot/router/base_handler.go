@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/mymmrac/telego"
@@ -11,7 +12,8 @@ import (
 )
 
 const (
-	chatsPerPage = 8 // Количество чатов выводимых пользователю за раз (пагинация)
+	chatsPerPage  = 8    // Количество чатов выводимых пользователю за раз (пагинация)
+	maxGistLength = 3900 // Телеграм ограничивает сообщение длинной в 4096 символа. Обрезаем пересказ батча до значения константы
 )
 
 // BaseHandler содержит общие зависимости и методы для всех обработчиков
@@ -30,11 +32,25 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat *model.Chat, menu
 
 	text := "" // Текст сообщения. Краткий пересказ выводится только если он сделан.
 	if len(chat.Gist) > 0 {
-		text = fmt.Sprintf("📩 %s\n🔍 Краткий пересказ %d/%d сообщений:\n\n %s\n", // 📌 Непрочитано: %d сообщений
+		gist := chat.Gist[gistPage-1].Gist
+		// Ограничиваем длину сообщения.
+		if len(gist) > maxGistLength {
+			log.Warn("gist is too long, crop it", slog.Int("length", len(gist))) // TODO исправить логику на работу с unicode
+			gist = gist[:maxGistLength] + "\n\ncropped " + strconv.Itoa(len(gist)-maxGistLength) + "!"
+		}
+
+		startMessageID := 0 // С какого сообщения начинается батч
+		for i := 0; i < gistPage-1; i++ {
+			startMessageID += chat.Gist[i].MessageCount
+		}
+
+		text = fmt.Sprintf("📩 %s\n🔍 Краткий пересказ %d-%d/%d-%d сообщений:\n\n %s\n", // 📌 Непрочитано: %d сообщений
 			chat.Title,
-			chat.Gist[gistPage-1].MessageCount,
+			startMessageID,
+			startMessageID+chat.Gist[gistPage-1].MessageCount, // до какого сообщения батч
 			chat.UnreadCount,
-			chat.Gist[gistPage-1].Gist,
+			chat.Skipped,
+			gist,
 		)
 	} else {
 		text = fmt.Sprintf("📩 %s\n\n 📌 Непрочитано: %d сообщений",

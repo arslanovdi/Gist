@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,6 +13,12 @@ import (
 func ConcatMP3(files []string, out string) error {
 
 	log := slog.With("func", "ffmpeg.ConcatMP3")
+
+	// Конвертируем выходной путь в абсолютный
+	absOut, err := filepath.Abs(out)
+	if err != nil {
+		return fmt.Errorf("ffmpeg.ConcatMP3 absolute path error for output: %w", err)
+	}
 
 	// создаём временный файл со списком
 	f, errT := os.CreateTemp("", "ffmpeg-list-*.txt")
@@ -33,8 +40,15 @@ func ConcatMP3(files []string, out string) error {
 
 	var b strings.Builder
 	for _, name := range files {
+		absPath, errA := filepath.Abs(name)
+		if errA != nil {
+			return fmt.Errorf("ffmpeg.ConcatMP3 absolute path error for %q: %w", name, errA)
+		}
+		// Экранируем одиночные кавычки в пути
+		absPath = strings.ReplaceAll(absPath, "'", "'\\''")
+
 		b.WriteString("file '")
-		b.WriteString(name)
+		b.WriteString(absPath)
 		b.WriteString("'\n")
 	}
 
@@ -48,7 +62,7 @@ func ConcatMP3(files []string, out string) error {
 		"-safe", "0",
 		"-i", f.Name(),
 		"-c", "copy",
-		out,
+		absOut,
 	)
 
 	return cmd.Run()

@@ -1,4 +1,4 @@
-package llm_tts
+package tts
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// PCMToWAV конвертирует PCM 16-bit данные в WAV формат
-func pcmToWAV(pcmData []byte, sampleRate int32, numChannels int16) ([]byte, error) {
+// PcmToWAV конвертирует PCM 16-bit данные в WAV формат
+func PcmToWAV(pcmData []byte, sampleRate int32, numChannels int16) ([]byte, error) {
 
 	// WAV заголовок
 	var wavData bytes.Buffer
@@ -43,8 +43,8 @@ func pcmToWAV(pcmData []byte, sampleRate int32, numChannels int16) ([]byte, erro
 	return wavData.Bytes(), nil
 }
 
-// parseDataURI извлекает base64 данные из data URI
-func parseDataURI(dataURI string) ([]byte, int32, error) {
+// ParseDataURI извлекает base64 данные из data URI
+func ParseDataURI(dataURI string) ([]byte, int32, error) {
 	// Формат: data:audio/L16;codec=pcm;rate=24000;base64,XXXXX
 	parts := strings.Split(dataURI, ",")
 	if len(parts) != 2 { // Первая часть это описание формата (заголовок), вторая данные

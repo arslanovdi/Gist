@@ -58,13 +58,7 @@ func New(ctx context.Context) (*App, error) {
 		return nil, fmt.Errorf("[app.new] llm initialization failed: %w", errL)
 	}
 
-	/*ttsClient, errT := llm_tts.NewGenkitService(ctx, cfg)
-	if errT != nil {
-		return nil, fmt.Errorf("[app.new] llm_tts initialization failed: %w", errT)
-	}*/
-	ttsClient := core.TTSClient(nil)
-
-	coreService := core.NewGist(telegramClient, llmClient, ttsClient, cfg)
+	coreService := core.NewGist(telegramClient, llmClient, cfg)
 
 	bot, errB := tgbot.New(cfg, coreService)
 	if errB != nil {

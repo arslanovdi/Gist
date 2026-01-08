@@ -12,16 +12,13 @@ import (
 // TelegramClient контракт для работы с телеграмм клиентом
 type TelegramClient interface {
 	GetAllChats(ctx context.Context) ([]model.Chat, error)
-	FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, error)
+	FetchUnreadMessages(ctx context.Context, chat *model.Chat, callback func(message string, count int, llm bool)) ([]model.Message, int, error)
 	MarkAsRead(ctx context.Context, chat *model.Chat, lastMessageID int) error
 }
 
 // LLMClient контракт для работы с LLM
 type LLMClient interface {
-	GetChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
-}
-
-type TTSClient interface {
+	GenerateChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
 	GenerateAudioGist(ctx context.Context, chat *model.Chat) error // Генерирует аудиопересказы по каждому из батчей
 }
 
@@ -29,7 +26,6 @@ type TTSClient interface {
 type Gist struct {
 	tgClient  TelegramClient
 	llmClient LLMClient
-	ttsClient TTSClient
 
 	cache      map[int64]*model.Chat // Для быстрого доступа TODO вынести кэш в отдельный слой?
 	chats      []model.Chat
@@ -37,6 +33,7 @@ type Gist struct {
 	ttl        time.Duration
 
 	UnreadThreshold int
+	cfg             *config.Config
 
 	requestTimeout time.Duration
 }
@@ -63,13 +60,13 @@ func (g *Gist) GetChatDetail(_ context.Context, chatID int64) (*model.Chat, erro
 }
 
 // NewGist конструктор
-func NewGist(tgClient TelegramClient, llmClient LLMClient, ttsClient TTSClient, cfg *config.Config) *Gist {
+func NewGist(tgClient TelegramClient, llmClient LLMClient, cfg *config.Config) *Gist {
 	return &Gist{
 		tgClient:        tgClient,
 		llmClient:       llmClient,
-		ttsClient:       ttsClient,
 		requestTimeout:  cfg.Client.RequestTimeout,
 		UnreadThreshold: cfg.Settings.ChatUnreadThreshold,
 		ttl:             cfg.Project.TTL,
+		cfg:             cfg,
 	}
 }

@@ -33,13 +33,13 @@ func (h *TTSHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload
 	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
 	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
 
-	audioPath, errA := h.CoreService.GetAudioGist(ctx, payload.ChatID, payload.Page) // получаем имя файла с нужным аудиопересказом
+	audioGist, errA := h.CoreService.GetAudioGist(ctx, payload.ChatID, payload.Page) // получаем имя файла с нужным аудиопересказом
 	if errA != nil {
 		return fmt.Errorf("tgbot.router.TTSHandler Ошибка получения аудиофайла: %w", errA)
 	}
 
 	// Получаем файл с аудиопересказом
-	audioFile, errO := os.Open(audioPath)
+	audioFile, errO := os.Open(audioGist.AudioFile)
 	if errO != nil {
 		return fmt.Errorf("open audio file error: %w", errO)
 	}
@@ -50,19 +50,22 @@ func (h *TTSHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload
 		}
 	}()
 
-	/*	h.Bot.SendVoice(ctx, tu.Voice(
+	// Отправляем аудио
+	_, errS := h.Bot.SendVoice(ctx, tu.Voice( // Отправка голосового сообщения.
 		tu.ID(h.UserID),
 		tu.File(audioFile),
-	))*/
+	).WithCaption(audioGist.Caption))
+	if errS != nil {
+		return errS
+	}
 
-	// Отправляем аудио
-	_, errS := h.Bot.SendAudio(ctx, tu.Audio(
+	/*_, errS := h.Bot.SendAudio(ctx, tu.Audio(	// отправка mp3 файла
 		tu.ID(h.UserID),
 		tu.File(audioFile),
 	))
 	if errS != nil {
 		return errS
-	}
+	}*/
 
 	return nil
 }

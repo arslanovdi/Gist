@@ -19,6 +19,7 @@ type Config struct {
 		Debug           bool          `yaml:"debug"`
 		ShutdownTimeout time.Duration `yaml:"shutdownTimeout"`
 		TTL             time.Duration `yaml:"ttl"` // Время хранения чатов в кэше
+		AudioPath       string        `mapstructure:"audio_path"`
 	} `yaml:"project"`
 
 	Bot struct {
@@ -47,9 +48,10 @@ type Config struct {
 		DriftPercent     int           `mapstructure:"drift_percent"`
 		SymbolPerToken   int           `mapstructure:"symbol_per_token"`
 		MessagesPerBatch int           `mapstructure:"messages_per_batch"`
-		ClientType       string        `mapstructure:"client_type"` // switch of Ollama, OpenRouter, Gemini, OpenAI.
+		DefaultProvider  string        `mapstructure:"default_provider"` // switch of Ollama, OpenRouter, Gemini, OpenAI.
 
 		Ollama struct {
+			Enabled       bool   `mapstructure:"enabled"`
 			ServerAddress string `mapstructure:"server_address"`
 			Timeout       int    `yaml:"timeout"`
 			Model         string `yaml:"model"`
@@ -57,31 +59,32 @@ type Config struct {
 		} `yaml:"Ollama"`
 
 		OpenRouter struct {
+			Enabled       bool   `mapstructure:"enabled"`
 			Model         string `yaml:"model"`
 			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"OpenRouter"`
 
 		Gemini struct {
-			Model         string `yaml:"model"`
-			ContextWindow int    `mapstructure:"context_window"`
+			Enabled       bool     `mapstructure:"enabled"`
+			Model         string   `yaml:"model"`
+			ContextWindow int      `mapstructure:"context_window"`
+			ApiKeys       []string `mapstructure:"api_keys"`
 		} `yaml:"Gemini"`
 
 		OpenAI struct {
+			Enabled       bool   `mapstructure:"enabled"`
 			Model         string `yaml:"model"`
 			ContextWindow int    `mapstructure:"context_window"`
 		} `yaml:"OpenAI"`
-	} `yaml:"llm"`
 
-	TTS struct {
-		Development bool          `yaml:"development"`
-		FlowTimeout time.Duration `mapstructure:"flow_timeout"` // Тайм-аут выполнения сценария LLM
-		ClientType  string        `mapstructure:"client_type"`  // switch Gemini
-		Gemini      struct {
-			Model        string `yaml:"model"`
-			LanguageCode string `mapstructure:"language_code"`
-			VoiceName    string `mapstructure:"voice_name"`
-		} `yaml:"Gemini"`
-	} `mapstructure:"llm_tts"`
+		TTS struct {
+			Gemini struct {
+				Model        string `yaml:"model"`
+				LanguageCode string `mapstructure:"language_code"`
+				VoiceName    string `mapstructure:"voice_name"`
+			} `yaml:"Gemini"`
+		} `mapstructure:"tts"`
+	} `yaml:"llm"`
 }
 
 // LoadConfig загружает конфигурацию приложения из YAML-файла.
