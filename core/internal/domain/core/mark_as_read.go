@@ -32,8 +32,8 @@ func (g *Gist) MarkAsRead(ctx context.Context, chatID int64, pageID int) (*model
 
 	if pageID > 0 {
 		for i := 0; i < pageID; i++ { // Очистка всех пересказов до текущего включительно.
-			chat.UnreadCount -= chat.Gist[0].MessageCount // уменьшаем количество непрочитанных сообщений в чате
-			deleteFile(chat.Gist[0].AudioFile)            // удаляем файл с аудиопересказом, если есть
+			chat.UnreadCount -= chat.Gist[i].MessageCount // уменьшаем количество непрочитанных сообщений в чате
+			deleteFile(chat.Gist[i].AudioFile)            // удаляем файл с аудиопересказом, если есть
 		}
 		chat.Gist = slices.Delete(chat.Gist, 0, pageID) // удаляем батчи с пересказом
 		deleteFile(chat.AudioFile)                      // удаляем файл с полным аудиопересказом, если есть

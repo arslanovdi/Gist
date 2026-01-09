@@ -19,7 +19,7 @@ type TelegramClient interface {
 // LLMClient контракт для работы с LLM
 type LLMClient interface {
 	GenerateChatGist(ctx context.Context, messages []model.Message, callback func(message string, progress int, llm bool)) ([]model.BatchGist, error)
-	GenerateAudioGist(ctx context.Context, chat *model.Chat) error // Генерирует аудиопересказы по каждому из батчей
+	GenerateAudioGist(ctx context.Context, chat *model.Chat, batchID int) error // Генерирует аудиопересказы по каждому из батчей
 }
 
 // Gist представляет ядро бизнес-логики приложения.

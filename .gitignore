@@ -4,3 +4,4 @@ core/.env
 .genkit
 session.json
 core/configs/keys.yaml
+core/configs/values_local.yaml

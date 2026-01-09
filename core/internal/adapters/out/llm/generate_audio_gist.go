@@ -26,12 +26,16 @@ type Params struct {
 
 // GenerateAudioGist выполняет запрос к LLM - сценарий GenerateAudioGistFlow для каждого батча.
 // Генерирует аудиопересказ чата, по батчам. Сохраняет в mp3 файлы. Имена файлов сохраняются в chat по указателю.
-func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat) error {
+// batchID - номер батча, для которого нужно вернуть аудиопересказ, если batchID = 0 возвращаем аудиопересказ всего чата
+func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat, batchID int) error {
 
 	log := slog.With("func", "llm.GenerateAudioGist")
 
 	if len(chat.Gist) == 0 {
 		return fmt.Errorf("batchGist is empty")
+	}
+	if batchID > len(chat.Gist) {
+		return fmt.Errorf("batchID %d is out of range, maximum allowed is %d", batchID, len(chat.Gist))
 	}
 
 	defer func() {
@@ -43,8 +47,19 @@ func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat)
 	ctxFlow, cancel := context.WithTimeout(ctx, s.flowTimeout) // Общий тайм-аут на обработку всех батчей
 	defer cancel()
 
-	i := 0
-	for i < len(chat.Gist) { // генерируем аудиопересказ для каждого батча отдельно
+	i := batchID
+	for i < len(chat.Gist) { // генерируем аудиопересказ для каждого батчей, у которых он еще не сгенерирован
+
+		if chat.Gist[i].AudioFile != "" { // если аудиопересказ батча уже существует
+			log.Info("audio file is exists", slog.Int64("chatID", chat.ID), slog.Int("batchID", i))
+
+			if batchID > 0 { // если пересказ конкретного батча
+				break // завершаем
+			}
+			i++
+			continue // переходим к следующему батчу
+		}
+
 		log.Debug("start generate audio", slog.Int("last message id", chat.Gist[i].LastMessageID))
 		now := time.Now()
 
@@ -74,6 +89,10 @@ func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat)
 
 		chat.Gist[i].AudioFile = filename
 		i++
+
+		if batchID > 0 { // Если нужно сгенерировать аудиопересказ конкретного батча
+			break // завершаем, так как остальные генерировать не надо.
+		}
 	}
 
 	return nil

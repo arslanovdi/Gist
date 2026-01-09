@@ -43,7 +43,7 @@ func (g *Gist) GetAudioGist(ctx context.Context, chatID int64, batchID int) (*mo
 		}
 
 		// генерируем аудиопересказ, сохраняется в chat по указателю
-		errG := g.llmClient.GenerateAudioGist(ctx, chat)
+		errG := g.llmClient.GenerateAudioGist(ctx, chat, batchID)
 		if errG != nil {
 			return nil, fmt.Errorf("core.GetAudioGist generate error: %w", errG)
 		}
@@ -72,7 +72,7 @@ func (g *Gist) GetAudioGist(ctx context.Context, chatID int64, batchID int) (*mo
 			log.Debug("Нет аудиопересказа батча", slog.Int("batch index", i))
 
 			// генерируем аудиопересказы
-			errG := g.llmClient.GenerateAudioGist(ctx, chat)
+			errG := g.llmClient.GenerateAudioGist(ctx, chat, 0)
 			if errG != nil {
 				return nil, fmt.Errorf("core.GetAudioGist generate error: %w", errG)
 			}
