@@ -44,7 +44,8 @@ type Config struct {
 
 	LLM struct {
 		Development      bool          `yaml:"development"`
-		FlowTimeout      time.Duration `mapstructure:"flow_timeout"` // Тайм-аут выполнения сценария LLM
+		FlowTimeout      time.Duration `mapstructure:"flow_timeout"`   // Тайм-аут выполнения сценария LLM
+		PromptTimeout    time.Duration `mapstructure:"prompt_timeout"` // Тайм-аут выполнения промпта LLM
 		DriftPercent     int           `mapstructure:"drift_percent"`
 		SymbolPerToken   int           `mapstructure:"symbol_per_token"`
 		MessagesPerBatch int           `mapstructure:"messages_per_batch"`
@@ -78,7 +79,8 @@ type Config struct {
 		} `yaml:"OpenAI"`
 
 		TTS struct {
-			Gemini struct {
+			MaxAudioFileSize int64 `mapstructure:"max_audio_file_size"` // Mb Телеграмм ограничивает отправку аудио-сообщений в 50 Мб.
+			Gemini           struct {
 				Model        string `yaml:"model"`
 				LanguageCode string `mapstructure:"language_code"`
 				VoiceName    string `mapstructure:"voice_name"`

@@ -17,7 +17,7 @@ import (
 
 // Retry логика с экспоненциальным backoff для ошибок. // TODO и тайм-аутом ответа от llm в 60 секунд.
 // Если с ошибкой прилетает время задержки, то выбирается оно, вместо экспоненциального.
-func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Logger) (*ai.ModelResponse, error) {
+func (s *GenkitService) retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Logger) (*ai.ModelResponse, error) {
 
 	start := time.Now()
 
@@ -25,15 +25,18 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 	baseDelay := 1 * time.Second
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
+		ctxPrompt, cancelPrompt := context.WithTimeout(ctx, s.cfg.LLM.PromptTimeout)
 		log.Debug("Запуск промпта", slog.Int("попытка", attempt))
-		resp, err := prompt.Execute(ctx, ai.WithInput(input))
+		resp, err := prompt.Execute(ctxPrompt, ai.WithInput(input))
 		if err == nil {
 			log.Debug("запрос к llm выполнен успешно", slog.Any("время обработки", time.Since(start).String()))
+			cancelPrompt()
 			return resp, nil // Успех
 		}
+		cancelPrompt()
 
 		// Проверяем, ретраить ли данную ошибку
-		if isErrorToRetry(err) {
+		if isErrorToRetry(err) { // TODO может быть ретраить ВСЕ ошибки?
 			if attempt == maxRetries {
 				return nil, fmt.Errorf("max retries exceeded for rate limit: %w", err)
 			}
@@ -83,11 +86,12 @@ func retryPrompt(ctx context.Context, prompt ai.Prompt, input any, log *slog.Log
 	return nil, fmt.Errorf("unreachable")
 }
 
-// Проверяет, является ли ошибка 429, 502, 503
+// Проверяет, является ли ошибка 429, 502, 503 и еще несколько.
 func isErrorToRetry(err error) bool {
 	errStr := strings.ToLower(err.Error())
-	return strings.Contains(errStr, "429") || // 429 Too Many Requests	(OpenRouter, Ollama, Gemini)
+	return errors.Is(err, context.DeadlineExceeded) || // Дедлайн промпта
+		strings.Contains(errStr, "429") || // 429 Too Many Requests	(OpenRouter, Ollama, Gemini)
 		strings.Contains(errStr, "502") || // 502 Bad Gateway	(OpenRouter)
-		strings.Contains(errStr, "503") // 503 The model is overloaded	(Gemini)
-
+		strings.Contains(errStr, "503") || // 503 The model is overloaded	(Gemini)
+		strings.Contains(errStr, "no choices in completion") // Ошибка возвращается если модель перегружена, бывает у free моделей (OpenRouter)
 }

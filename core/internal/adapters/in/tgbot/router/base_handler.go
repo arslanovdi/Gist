@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
+	"github.com/arslanovdi/Gist/core/internal/infra/utils"
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
 )
@@ -44,12 +46,11 @@ func (b *BaseHandler) showChatDetail(ctx context.Context, chat *model.Chat, menu
 			startMessageID += chat.Gist[i].MessageCount
 		}
 
-		text = fmt.Sprintf("📩 %s\n🔍 Краткий пересказ %d-%d/%d-%d сообщений:\n\n %s\n", // 📌 Непрочитано: %d сообщений
+		text = fmt.Sprintf("📩 %s\n🔍 Краткий пересказ %d сообщений (%s) c %s\n\n %s\n",
 			chat.Title,
-			startMessageID,
-			startMessageID+chat.Gist[gistPage-1].MessageCount, // до какого сообщения батч
-			chat.UnreadCount,
-			chat.Skipped,
+			chat.Gist[gistPage-1].MessageCount,
+			utils.FormatDurationShort(chat.Gist[gistPage-1].LastMessageData.Sub(chat.Gist[gistPage-1].FirstMessageData)),
+			utils.FormatDateShort(chat.Gist[gistPage-1].FirstMessageData),
 			gist,
 		)
 	} else {
@@ -251,19 +252,37 @@ func (b *BaseHandler) buildChatsMenu(chats []model.Chat, page int, menu Menu) *t
 // Редактирование сообщения с меню.
 func (b *BaseHandler) editMessage(ctx context.Context, text string) error {
 
+	log := slog.With("func", "router.editMessage")
+
 	if b.LastMessageID != 0 {
 		// Пытаемся отредактировать
 		message := tu.EditMessageText(
 			tu.ID(b.UserID),
 			b.LastMessageID,
-			text,
+			fmt.Sprintf("%s\n\n⏰ %s (UTC+0)", text, time.Now().UTC().Format("15:04:05")), // Выводим метку времени, чтобы было видно когда в последний раз изменилось сообщение. Телеграм отображает только метку создания.
 		)
 
 		_, errE := b.Bot.EditMessageText(ctx, message)
 		if errE != nil {
 			return fmt.Errorf("router.editMessage: %w", errE)
 		}
+
+		return nil
 	}
+
+	// Отправляем новое
+	message := tu.Message(
+		tu.ID(b.UserID),
+		text,
+	)
+
+	msg, errS := b.Bot.SendMessage(ctx, message)
+	if errS != nil {
+		log.Error("send message on editMessage error", slog.Any("error", errS))
+		return fmt.Errorf("send message when editMessage error: %w", errS)
+	}
+
+	b.LastMessageID = msg.MessageID
 
 	return nil
 }

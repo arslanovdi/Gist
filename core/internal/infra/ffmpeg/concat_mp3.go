@@ -7,10 +7,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/arslanovdi/Gist/core/internal/domain/model"
 )
 
-// ConcatMP3
-func ConcatMP3(files []string, out string) error {
+// TODO Если пересказ одного батча будет больше 45 Мб, то возникнет неразрешимая ситуация при создании общего файла
+// ConcatMP3 объединяет несколько аудиофайлов в один
+func ConcatMP3(files []model.AudioGist, out string) error {
 
 	log := slog.With("func", "ffmpeg.ConcatMP3")
 
@@ -40,7 +43,7 @@ func ConcatMP3(files []string, out string) error {
 
 	var b strings.Builder
 	for _, name := range files {
-		absPath, errA := filepath.Abs(name)
+		absPath, errA := filepath.Abs(name.AudioFile)
 		if errA != nil {
 			return fmt.Errorf("ffmpeg.ConcatMP3 absolute path error for %q: %w", name, errA)
 		}

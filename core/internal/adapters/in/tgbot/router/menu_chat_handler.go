@@ -29,7 +29,7 @@ func (h *ChatMenuHandler) Handle(ctx *th.Context, query telego.CallbackQuery, pa
 	log := slog.With("func", "router.ChatMenuHandler")
 	log.Debug("handling main menu callback")
 
-	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд
+	// Обязательно сразу отвечаем, что обработчик работает, могут быть проблемы из-за медленных ответов > 10 секунд TODO а надо ли отвечать сразу?
 	_ = h.Bot.AnswerCallbackQuery(ctx, tu.CallbackQuery(query.ID))
 
 	chatDetail, errD := h.CoreService.GetChatDetail(ctx, payload.ChatID)

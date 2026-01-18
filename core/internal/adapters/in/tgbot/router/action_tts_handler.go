@@ -38,25 +38,26 @@ func (h *TTSHandler) Handle(ctx *th.Context, query telego.CallbackQuery, payload
 		return fmt.Errorf("tgbot.router.TTSHandler Ошибка получения аудиофайла: %w", errA)
 	}
 
-	// Получаем файл с аудиопересказом
-	audioFile, errO := os.Open(audioGist.AudioFile)
-	if errO != nil {
-		return fmt.Errorf("open audio file error: %w", errO)
-	}
-	defer func() {
-		errC := audioFile.Close()
-		if errC != nil {
-			log.Error("audio file close error:", errC)
+	for i := range audioGist { // Отправляем файлы, по очереди
+		audioFile, errO := os.Open(audioGist[i].AudioFile)
+		if errO != nil {
+			return fmt.Errorf("open audio file error: %w", errO)
 		}
-	}()
+		defer func() {
+			errC := audioFile.Close()
+			if errC != nil {
+				log.Error("audio file close error:", errC)
+			}
+		}()
 
-	// Отправляем аудио
-	_, errS := h.Bot.SendVoice(ctx, tu.Voice( // Отправка голосового сообщения.
-		tu.ID(h.UserID),
-		tu.File(audioFile),
-	).WithCaption(audioGist.Caption))
-	if errS != nil {
-		return errS
+		// Отправляем аудио
+		_, errS := h.Bot.SendVoice(ctx, tu.Voice( // Отправка голосового сообщения.
+			tu.ID(h.UserID),
+			tu.File(audioFile),
+		).WithCaption(audioGist[i].Caption))
+		if errS != nil {
+			return errS
+		}
 	}
 
 	/*_, errS := h.Bot.SendAudio(ctx, tu.Audio(	// отправка mp3 файла

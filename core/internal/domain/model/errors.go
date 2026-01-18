@@ -10,3 +10,6 @@ var ErrChatNotFoundInCache = errors.New("chat not found in cache")
 
 // ErrResourceExhausted сработало ограничение по квоте на Gemini api key.
 var ErrResourceExhausted = errors.New("resource exhausted")
+
+// ErrGeminiTTSQuotaExceeded достигнут суточный лимит api вызовов к gemini-tts. С текущим пулом api ключей.
+var ErrGeminiTTSQuotaExceeded = errors.New("daily limit of API calls to gemini-tts has been reached")

@@ -201,6 +201,7 @@ func (s *GenkitService) registerFlows() {
 
 }
 
+// initGenkit (ре)инициализация genkit. Если nextApiKey = true, то используется следующий gemini api key из пула.
 func (s *GenkitService) initGenkit(ctx context.Context, nextApiKey bool) {
 
 	log := slog.With("func", "llm.initGenkit")

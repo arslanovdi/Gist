@@ -12,6 +12,7 @@ import (
 	"github.com/arslanovdi/Gist/core/internal/adapters/out/llm/tts"
 	"github.com/arslanovdi/Gist/core/internal/domain/model"
 	"github.com/arslanovdi/Gist/core/internal/infra/ffmpeg"
+	"github.com/arslanovdi/Gist/core/internal/infra/utils"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"google.golang.org/genai"
@@ -26,7 +27,7 @@ type Params struct {
 
 // GenerateAudioGist выполняет запрос к LLM - сценарий GenerateAudioGistFlow для каждого батча.
 // Генерирует аудиопересказ чата, по батчам. Сохраняет в mp3 файлы. Имена файлов сохраняются в chat по указателю.
-// batchID - номер батча, для которого нужно вернуть аудиопересказ, если batchID = 0 возвращаем аудиопересказ всего чата
+// batchID - номер батча, для которого нужно сгенерировать аудиопересказ, если batchID = 0 генерируем аудиопересказы всех батчей, пропуская существующие.
 func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat, batchID int) error {
 
 	log := slog.With("func", "llm.GenerateAudioGist")
@@ -48,10 +49,15 @@ func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat,
 	defer cancel()
 
 	i := batchID
-	for i < len(chat.Gist) { // генерируем аудиопересказ для каждого батчей, у которых он еще не сгенерирован
+	if batchID > 0 {
+		i-- // корректируем адресацию в слайсе
+	}
 
-		if chat.Gist[i].AudioFile != "" { // если аудиопересказ батча уже существует
-			log.Info("audio file is exists", slog.Int64("chatID", chat.ID), slog.Int("batchID", i))
+	resourceExhaustedCount := 0 // Счетчик переинициализаций genkit, если станет больше кол-ва gemini_api ключей, значит лимит выбран и возвращаем ошибку.
+	for i < len(chat.Gist) {    // генерируем аудиопересказ для каждого батчей, у которых он еще не сгенерирован
+
+		if len(chat.Gist[i].Audio) > 0 { // если аудиопересказ батча уже существует
+			log.Info("audio file is exists", slog.Int64("chatID", chat.ID), slog.Int("batchID", i), slog.Int("audio file count", len(chat.Gist[i].Audio)))
 
 			if batchID > 0 { // если пересказ конкретного батча
 				break // завершаем
@@ -72,9 +78,12 @@ func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat,
 			})
 		if errF != nil {
 			if errors.Is(errF, model.ErrResourceExhausted) {
+				if resourceExhaustedCount > len(s.cfg.LLM.Gemini.ApiKeys) {
+					return model.ErrGeminiTTSQuotaExceeded // TODO вынести в логику в genkit init?
+				}
 
 				log.Info("ResourceExhausted, re-init genkit", slog.Int("GeminiApiKeyIndex", s.currentGeminiApiKeyIndex))
-
+				resourceExhaustedCount++
 				s.initGenkit(context.Background(), true)
 
 				continue
@@ -87,7 +96,43 @@ func (s *GenkitService) GenerateAudioGist(ctx context.Context, chat *model.Chat,
 			slog.String("filename", filename),
 			slog.Any("время генерации", time.Since(now).String()))
 
-		chat.Gist[i].AudioFile = filename
+		// получаем размер сгенерированного файла.
+		fileSize := int64(0)
+		info, errS := os.Stat(filename)
+		if errS != nil {
+			log.Error("get FileInfo of audio file error", slog.String("filename", filename), slog.Any("error", errS))
+		} else {
+			fileSize = info.Size()
+		}
+
+		if fileSize > s.cfg.LLM.TTS.MaxAudioFileSize*1024*1024 { // Размер файла превышает максимально разрешенный
+			files, errT := ffmpeg.SplitMP3(filename, s.cfg.LLM.TTS.MaxAudioFileSize) // Разбиваем на несколько
+			if errT != nil {
+				log.Error("Trim audiofile error", slog.String("filename", filename), slog.Any("error", errT))
+			}
+
+			for index := range files { // добавляем файлы
+				chat.Gist[i].Audio = append(chat.Gist[i].Audio, model.AudioGist{
+					AudioFile: files[index].AudioFile,
+					Caption: fmt.Sprintf("%s (%s)\nот %s\npart %d",
+						chat.Title,
+						utils.FormatDurationShort(chat.Gist[i].LastMessageData.Sub(chat.Gist[i].FirstMessageData)),
+						utils.FormatDateShort(chat.Gist[i].FirstMessageData),
+						//						chat.Gist[i].LastMessageData,
+						index+1,
+					),
+				})
+			}
+		} else { // иначе добавляем один файл
+			chat.Gist[i].Audio = append(chat.Gist[i].Audio, model.AudioGist{
+				AudioFile: filename,
+				Caption: fmt.Sprintf("%s (%s)\nот %s",
+					chat.Title,
+					utils.FormatDurationShort(chat.Gist[i].LastMessageData.Sub(chat.Gist[i].FirstMessageData)),
+					utils.FormatDateShort(chat.Gist[i].FirstMessageData),
+				),
+			})
+		}
 		i++
 
 		if batchID > 0 { // Если нужно сгенерировать аудиопересказ конкретного батча
@@ -131,8 +176,9 @@ func (s *GenkitService) defineGenerateAudioGistFlow() {
 
 	// Определяем сценарий, генерирующий аудио из текста.
 	s.generateAudioGistFlow = genkit.DefineFlow(s.g, "generateAudioGistFlow", func(ctx context.Context, input Params) (string, error) {
+
 		// выполняем простой запрос с Retry wrapper для обработки 429
-		resp, err := retryPrompt(ctx, generateAudioGistPrompt, promptInput{Text: input.Prompt}, log)
+		resp, err := s.retryPrompt(ctx, generateAudioGistPrompt, promptInput{Text: input.Prompt}, log)
 		if err != nil {
 			return "", fmt.Errorf("generateAudioGistFlow.generateAudioGistPrompt: %w", err)
 		}
