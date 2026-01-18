@@ -31,17 +31,19 @@ func (g *Gist) MarkAsRead(ctx context.Context, chatID int64, pageID int) (*model
 	chat.LastReadMessageID = lastMessageID // обновляем ID последнего прочитанного сообщения
 
 	// Удаляем прочитанные сообщения из кэша
-	i := 0
-	for {
-		if chat.Messages[i].ID == lastMessageID {
-			i++ // смещаемся на начало непрочитанного блока сообщений
-			break
+	if len(chat.Messages) > 0 {
+		i := 0
+		for {
+			if chat.Messages[i].ID == lastMessageID {
+				i++ // смещаемся на начало непрочитанного блока сообщений
+				break
+			}
+			i++
 		}
-		i++
+		messages := make([]model.Message, len(chat.Messages)-i)
+		copy(messages, chat.Messages[i:])
+		chat.Messages = messages
 	}
-	messages := make([]model.Message, len(chat.Messages)-i)
-	copy(messages, chat.Messages[i:])
-	chat.Messages = messages
 
 	if pageID > 0 {
 		for i := 0; i < pageID; i++ { // Очистка всех пересказов до текущего включительно.
