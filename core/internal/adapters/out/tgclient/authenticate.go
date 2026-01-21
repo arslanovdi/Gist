@@ -37,7 +37,7 @@ func (s *Session) Authenticate(ctx context.Context) error {
 	errF := flow.Run(ctx, s.client.Auth())
 	if errF != nil {
 		// При ошибке аутентификации удаляем сессию и пробуем снова
-		if errR := os.Remove("session.json"); errR != nil && !os.IsNotExist(errR) {
+		if errR := os.Remove(sessionFileName); errR != nil && !os.IsNotExist(errR) {
 			log.Error("Warning: failed to remove session file", slog.Any("error", errR))
 		}
 		log.Debug("authentication failed", slog.Any("error", errF), slog.Int64("user_id", s.userID))

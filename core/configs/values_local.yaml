@@ -2,7 +2,7 @@ project:
   debug: true
   shutdownTimeout: 60s
   ttl: 1h
-  audio_path: audio
+  audio_path: ./audio
 
 bot:
   token: ""

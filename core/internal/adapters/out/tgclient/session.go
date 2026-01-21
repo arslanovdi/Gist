@@ -17,6 +17,7 @@ import (
 )
 
 const batchLimit = 100
+const sessionFileName = "./session.json"
 
 // Session структура телеграм клиента. В этой реализации подключение только одного пользователя!
 type Session struct {
@@ -50,7 +51,7 @@ func NewSession(cfg *config.Config) *Session {
 		cfg.Client.AppHash,
 		telegram.Options{
 			SessionStorage: &telegram.FileSessionStorage{ // TODO Реализовать сохранение во внешнее хранилище сессий
-				Path: "session.json",
+				Path: sessionFileName,
 			},
 			Middlewares: []telegram.Middleware{
 				waiter, // обработчик FLOOD_WAIT

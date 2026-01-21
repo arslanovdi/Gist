@@ -15,3 +15,101 @@
 Кроме кнопи озвучить добавить кнопку озвучить всё.
 По нажатии на кнопку озвучить будет воспроизводиться аудиопересказ конкретного батча.
 По нажатии на кнопку озвучить всё, файлы с батчами будут объединяться и воспроизводится одним файлом.
+
+# Деплой
+Настроил подключение к серверу через ssh туннель, по сертификату.
+
+## Через SSH config
+
+### Windows
+Создайте/отредактируйте C:\Users\ВашеИмя\\.ssh\config:
+```
+Host vps
+    HostName ваш_сервер_ip
+    User ваш_пользователь
+    Port порт_ssh
+    IdentityFile C:\Users\ВашеИмя\.ssh\id_rsa (приватный ключ)
+    # Дополнительные опции при необходимости
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+```
+
+Если приватный ключ защищен паролем:
+
+```powershell
+Get-Service ssh-agent | Set-Service -StartupType Automatic
+Start-Service ssh-agent
+ssh-add C:\Users\ВашеИмя\.ssh\id_rsa (приватный ключ)
+Ввести пароль
+
+ssh-add -L
+(проверка)
+```
+
+Проверка
+```cmd
+ssh vps "echo SSH работает"
+```
+
+### WSL2
+```bash
+# 1. Создаем .ssh директорию в WSL2
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# 2. Копируем приватный ключ из Windows в WSL2
+cp /mnt/c/Users/ВашеИмя/.ssh/id_rsa ~/.ssh/id_rsa
+chmod 600 ~/.ssh/id_rsa
+
+# 3. Создаем SSH config
+cat > ~/.ssh/config << 'EOF'
+Host vps
+  HostName ваш_сервер_ip
+  Port порт_ssh
+  User ваш_пользователь
+  IdentityFile ~/.ssh/id_rsa
+  IdentitiesOnly yes
+EOF
+
+chmod 600 ~/.ssh/config
+```
+#### Автоматический ввод пароля от сертификата (до перезагрузки).
+Добавить в ~/.bashrc:
+```bash
+# Auto-start SSH agent in WSL2
+if [ -z "$SSH_AUTH_SOCK" ]; then
+    # Check if agent is already running
+    if [ -S ~/.ssh/agent.sock ]; then
+        export SSH_AUTH_SOCK=~/.ssh/agent.sock
+    else
+        # Start new agent
+        eval "$(ssh-agent -s -a ~/.ssh/agent.sock)" > /dev/null 2>&1
+        export SSH_AUTH_SOCK=~/.ssh/agent.sock
+        echo "✅ SSH agent started"
+    fi
+fi
+
+# Function to add SSH key if not already added
+ssh-add-key() {
+    if ssh-add -l | grep -q "$(ssh-keygen -lf ~/.ssh/id_rsa 2>/dev/null | awk '{print $2}')"; then
+        echo "✅ SSH key already in agent"
+    else
+        echo "🔐 Adding SSH key to agent..."
+        ssh-add ~/.ssh/id_rsa
+    fi
+}
+
+# Alias for convenience
+alias add-ssh='ssh-add-key'
+```
+
+Перезапустить терминал.
+
+Выполнить
+```bash
+ssh-add ~/.ssh/id_rsa
+
+# Проверяем подключение
+ssh vps "echo ✅ SSH работает"
+```
+

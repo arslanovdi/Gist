@@ -1,0 +1,21 @@
+
+services:
+  gist-core:
+    image: gist-core:latest
+    container_name: gist-core
+    restart: unless-stopped
+    volumes:
+      - audio:/bin/audio
+    networks:
+      - gist-network
+    deploy:
+      resources:  # Ограничения ресурсов для VPS
+        limits:
+          memory: 256M
+          cpus: '0.5'
+volumes:
+  audio:
+    driver: local
+networks:
+  gist-network:
+    driver: bridge

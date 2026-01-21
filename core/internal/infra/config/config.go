@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const defaultConfigFilePath = "configs/values_local.yaml"
+const defaultConfigFilePath = "./configs/values_local.yaml"
 
 // Config структура конфигурации приложения
 type Config struct {
@@ -120,6 +121,8 @@ func LoadConfig() (*Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unable to decode config: %w", err)
 	}
+
+	slog.Debug("Configuration loaded", slog.Any("cfg", cfg))
 
 	return &cfg, nil
 }

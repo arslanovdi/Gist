@@ -18,7 +18,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const envFileName = ".env"
+const envFileName = "./.env"
 
 // App структура со всеми зависимостями приложения
 type App struct {
